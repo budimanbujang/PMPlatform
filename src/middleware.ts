@@ -6,6 +6,7 @@ const PUBLIC_PATHS = [
   "/auth/callback",
   "/api/cron",
   "/api/health",
+  "/setup",
   "/_next",
   "/favicon.ico",
 ];
@@ -16,17 +17,24 @@ export async function middleware(req: NextRequest) {
 
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) return res;
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get: (n) => req.cookies.get(n)?.value,
-        set: (n, v, o) => res.cookies.set({ name: n, value: v, ...o }),
-        remove: (n, o) => res.cookies.set({ name: n, value: "", ...o }),
-      },
+  const supabaseUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  // If env isn't configured yet (e.g. first deploy), send to setup help
+  // instead of crashing every request.
+  if (!supabaseUrl || !supabaseAnon) {
+    const url = req.nextUrl.clone();
+    url.pathname = "/setup";
+    return NextResponse.redirect(url);
+  }
+
+  const supabase = createServerClient(supabaseUrl, supabaseAnon, {
+    cookies: {
+      get: (n) => req.cookies.get(n)?.value,
+      set: (n, v, o) => res.cookies.set({ name: n, value: v, ...o }),
+      remove: (n, o) => res.cookies.set({ name: n, value: "", ...o }),
     },
-  );
+  });
 
   const {
     data: { user },

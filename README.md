@@ -2,6 +2,10 @@
 
 Source of truth for every project running in JCorp HoldCo. A generic project-reporting and governance engine, with Project IRIS as its first tenant.
 
+**Deploying?** Follow [`DEPLOY.md`](./DEPLOY.md) — 90 minutes, end to end.
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fbudimanbujang%2Fpmplatform&project-name=jcorp-pmo&repository-name=jcorp-pmo&env=NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,ANTHROPIC_API_KEY,RESEND_API_KEY,CRON_SECRET,NEXT_PUBLIC_APP_URL,NEXT_PUBLIC_APP_NAME&envDescription=See%20DEPLOY.md%20for%20each%20variable&envLink=https%3A%2F%2Fgithub.com%2Fbudimanbujang%2Fpmplatform%2Fblob%2Fmain%2FDEPLOY.md)
+
 ## What's in the box (Phase 0 → Phase 4 scaffold)
 
 - **Project register** — create, configure, and manage projects and their initiatives.

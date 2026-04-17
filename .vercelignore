@@ -1,0 +1,13 @@
+.git
+.github
+tests
+playwright-report
+test-results
+supabase/.branches
+supabase/.temp
+*.log
+.env.local
+.env.*.local
+README.md
+DEPLOY.md
+PROJECT_CONTEXT.md

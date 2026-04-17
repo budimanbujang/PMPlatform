@@ -16,7 +16,10 @@
     "test": "playwright test",
     "test:e2e": "playwright test tests/e2e",
     "cron:reminders": "tsx scripts/run-reminders.ts",
-    "cron:reports": "tsx scripts/run-reports.ts"
+    "cron:reports": "tsx scripts/run-reports.ts",
+    "preflight": "tsx scripts/preflight.ts",
+    "bootstrap-admin": "tsx scripts/bootstrap-admin.ts",
+    "seed-users": "tsx scripts/seed-users.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.65.0",
