@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 const PUBLIC_PATHS = [
   "/login",
@@ -30,9 +30,11 @@ export async function middleware(req: NextRequest) {
 
   const supabase = createServerClient(supabaseUrl, supabaseAnon, {
     cookies: {
-      get: (n) => req.cookies.get(n)?.value,
-      set: (n, v, o) => res.cookies.set({ name: n, value: v, ...o }),
-      remove: (n, o) => res.cookies.set({ name: n, value: "", ...o }),
+      get: (n: string) => req.cookies.get(n)?.value,
+      set: (n: string, v: string, o: CookieOptions) =>
+        res.cookies.set({ name: n, value: v, ...o }),
+      remove: (n: string, o: CookieOptions) =>
+        res.cookies.set({ name: n, value: "", ...o }),
     },
   });
 
