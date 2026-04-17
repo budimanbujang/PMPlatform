@@ -62,8 +62,7 @@ src/
   components/   shell, ui primitives
   lib/          supabase clients, auth, reports, ai, email, cron auth
   types/        hand-maintained DB types
-scripts/        one-shot CLI scripts (user seed, cron runners)
-tests/          Playwright e2e
+scripts/        one-shot CLI scripts (user seed, cron runners, preflight)
 ```
 
 ## Architecture
