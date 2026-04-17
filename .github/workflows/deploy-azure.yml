@@ -37,10 +37,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
 
       - name: Install dependencies
-        run: npm ci --no-audit --no-fund
+        # No lock file in the repo yet → use `npm install` instead of `npm ci`.
+        # Once the first green build runs, commit the generated package-lock.json
+        # and switch this back to `npm ci` for reproducible builds.
+        run: npm install --no-audit --no-fund
 
       - name: Build
         run: npm run build
@@ -57,16 +59,14 @@ jobs:
 
       - name: Package artifact
         # App Service expects a zipped deployment. Include the standalone
-        # output + required runtime files.
+        # output + required runtime files. The lock file is optional —
+        # include it only if it exists so we don't fail when it doesn't.
         run: |
-          zip -r deploy.zip \
-            .next \
-            public \
-            node_modules \
-            package.json \
-            package-lock.json \
-            next.config.mjs \
-            -x "*.map" -x ".next/cache/*"
+          files=".next public node_modules package.json next.config.mjs"
+          [ -f package-lock.json ] && files="$files package-lock.json"
+          # `public/` is optional — Next 14 doesn't require it.
+          [ -d public ] || files=$(echo "$files" | sed 's| public||')
+          zip -r deploy.zip $files -x "*.map" -x ".next/cache/*"
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
