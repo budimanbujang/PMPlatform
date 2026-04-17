@@ -66,13 +66,11 @@ begin
   end loop;
 end $$;
 
--- Step 3 — drop our storage bucket policies
-drop policy if exists "doc_read_owned"   on storage.objects;
-drop policy if exists "doc_upload_owned" on storage.objects;
+-- Step 3 — drop our storage bucket policies (buckets themselves are left
+-- in place; phase 0's insert uses `on conflict (id) do nothing` so it's safe)
+drop policy if exists "doc_read_owned"     on storage.objects;
+drop policy if exists "doc_upload_owned"   on storage.objects;
 drop policy if exists "report_read_member" on storage.objects;
-
--- Step 4 — remove storage buckets so phase 0 re-seeds them cleanly
-delete from storage.buckets where id in ('project-documents', 'reports');
 
 
 -- >>> BEGIN supabase/migrations/20260417000000_phase0_core.sql
