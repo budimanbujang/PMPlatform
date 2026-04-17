@@ -1,0 +1,72 @@
+# Scheduled cron jobs — replaces Vercel Cron for the Azure-hosted version.
+# Uses GitHub Actions cron to hit our /api/cron/* endpoints.
+#
+# All times below are UTC. JCorp ops run on UTC+8 (Malaysia), so:
+#   Mon 09:00 MYT = Mon 01:00 UTC
+#   Tue 12:00 MYT = Tue 04:00 UTC
+#   Tue 14:00 MYT = Tue 06:00 UTC
+#   Tue 14:30 MYT = Tue 06:30 UTC
+#
+# Prerequisite:
+#   - repo secret APP_BASE_URL  (e.g. https://jcorp-pmo.azurewebsites.net)
+#   - repo secret CRON_SECRET   (matches the App Service env var of the same name)
+
+name: Scheduled cron
+
+on:
+  schedule:
+    - cron: "0 1 * * 1"     # Mon 09:00 MYT — submission-due reminders
+    - cron: "0 4 * * 2"     # Tue 12:00 MYT — second reminder
+    - cron: "0 6 * * 2"     # Tue 14:00 MYT — weekly report generation
+    - cron: "30 6 * * 2"    # Tue 14:30 MYT — AI insight digest
+  workflow_dispatch:
+    inputs:
+      job:
+        description: Which cron to run manually
+        required: true
+        default: reminders
+        type: choice
+        options:
+          - reminders
+          - reports
+          - insights
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Decide which endpoint
+        id: pick
+        run: |
+          hour=$(date -u +%H)
+          dow=$(date -u +%u)  # 1=Mon .. 7=Sun
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "path=${{ inputs.job }}" >> "$GITHUB_OUTPUT"
+          elif [ "$dow" = "1" ] && [ "$hour" = "01" ]; then
+            echo "path=reminders" >> "$GITHUB_OUTPUT"
+          elif [ "$dow" = "2" ] && [ "$hour" = "04" ]; then
+            echo "path=reminders" >> "$GITHUB_OUTPUT"
+          elif [ "$dow" = "2" ] && [ "$hour" = "06" ]; then
+            # Differentiate 14:00 vs 14:30 by minute
+            minute=$(date -u +%M)
+            if [ "$minute" -ge "30" ]; then
+              echo "path=insights"  >> "$GITHUB_OUTPUT"
+            else
+              echo "path=reports"   >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "path=reminders"   >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Hit the cron endpoint
+        env:
+          URL: ${{ secrets.APP_BASE_URL }}/api/cron/${{ steps.pick.outputs.path }}
+          TOKEN: ${{ secrets.CRON_SECRET }}
+        run: |
+          echo "Calling $URL"
+          http_code=$(curl -sS -o /tmp/response -w "%{http_code}" \
+            -X POST "$URL" \
+            -H "Authorization: Bearer $TOKEN")
+          echo "HTTP $http_code"
+          cat /tmp/response
+          test "$http_code" = "200"

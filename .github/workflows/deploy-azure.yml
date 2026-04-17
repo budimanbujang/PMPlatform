@@ -1,0 +1,76 @@
+# Builds the Next.js app and deploys to Azure App Service.
+# Triggered on push to the development branch; can also be invoked manually.
+#
+# Prerequisites (one-off, done by you in Azure + GitHub — see AZURE_DEPLOY.md):
+#   - Azure App Service created (Linux, Node 20)
+#   - Publish profile downloaded from Azure and pasted into GitHub
+#     as repo secret  AZUREAPPSERVICE_PUBLISHPROFILE
+#   - Env vars set directly in App Service → Configuration
+#     (NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY,
+#      SUPABASE_SERVICE_ROLE_KEY, ANTHROPIC_API_KEY, RESEND_API_KEY,
+#      CRON_SECRET, NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_APP_NAME)
+
+name: Deploy to Azure App Service
+
+on:
+  push:
+    branches:
+      - claude/digital-pmo-platform-rBHme
+      - main
+  workflow_dispatch:
+
+env:
+  AZURE_WEBAPP_NAME: jcorp-pmo          # ← update if your App Service has a different name
+  NODE_VERSION: "20.x"
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build
+        run: npm run build
+        env:
+          # Build-time public vars — pulled from GitHub secrets so the
+          # Next.js client bundle is compiled with the right values.
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
+          NEXT_PUBLIC_APP_NAME: JCorp PMO
+
+      - name: Prune dev dependencies
+        run: npm prune --omit=dev
+
+      - name: Package artifact
+        # App Service expects a zipped deployment. Include the standalone
+        # output + required runtime files.
+        run: |
+          zip -r deploy.zip \
+            .next \
+            public \
+            node_modules \
+            package.json \
+            package-lock.json \
+            next.config.mjs \
+            -x "*.map" -x ".next/cache/*"
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE }}
+          package: deploy.zip
