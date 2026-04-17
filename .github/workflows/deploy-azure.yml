@@ -20,7 +20,7 @@ on:
   workflow_dispatch:
 
 env:
-  AZURE_WEBAPP_NAME: jcorp-pmo          # ← update if your App Service has a different name
+  AZURE_WEBAPP_NAME: bbai          # ← update if your App Service has a different name
   NODE_VERSION: "20.x"
 
 jobs:
@@ -50,7 +50,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
-          NEXT_PUBLIC_APP_NAME: JCorp PMO
+          NEXT_PUBLIC_APP_NAME: BB AI
 
       - name: Prune dev dependencies
         run: npm prune --omit=dev
