@@ -1,0 +1,71 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 222 47% 11%;
+  --muted: 210 40% 96%;
+  --border: 214 32% 91%;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+@layer components {
+  .card {
+    @apply rounded-lg border border-slate-200 bg-white shadow-sm;
+  }
+  .card-header {
+    @apply flex items-center justify-between border-b border-slate-200 px-5 py-4;
+  }
+  .card-body {
+    @apply p-5;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
+      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1
+      disabled:pointer-events-none disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-brand-600 text-white hover:bg-brand-700 px-4 py-2;
+  }
+  .btn-secondary {
+    @apply btn bg-white text-slate-900 border border-slate-300 hover:bg-slate-50 px-4 py-2;
+  }
+  .btn-ghost {
+    @apply btn text-slate-700 hover:bg-slate-100 px-3 py-2;
+  }
+  .input {
+    @apply block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm
+      placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500;
+  }
+  .label {
+    @apply block text-sm font-medium text-slate-700 mb-1.5;
+  }
+  .badge {
+    @apply inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium;
+  }
+  .table-wrap {
+    @apply overflow-hidden rounded-lg border border-slate-200;
+  }
+  .table {
+    @apply w-full text-sm;
+  }
+  .table thead {
+    @apply bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600;
+  }
+  .table th, .table td {
+    @apply px-4 py-3 border-b border-slate-100;
+  }
+  .table tr:last-child td {
+    @apply border-b-0;
+  }
+}

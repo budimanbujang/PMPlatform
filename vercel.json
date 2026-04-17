@@ -1,0 +1,14 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    { "path": "/api/cron/reminders?token=${CRON_SECRET}", "schedule": "0 1 * * 1" },
+    { "path": "/api/cron/reminders?token=${CRON_SECRET}", "schedule": "0 4 * * 2" },
+    { "path": "/api/cron/reports?token=${CRON_SECRET}",   "schedule": "0 6 * * 2" },
+    { "path": "/api/cron/insights?token=${CRON_SECRET}",  "schedule": "30 6 * * 2" }
+  ],
+  "functions": {
+    "src/app/api/cron/reports/route.ts":  { "maxDuration": 300 },
+    "src/app/api/cron/insights/route.ts": { "maxDuration": 300 },
+    "src/app/api/projects/[id]/generate-report/route.ts": { "maxDuration": 300 }
+  }
+}
