@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { supabaseBrowser } from "@/lib/supabase/client";
+import { createRisk } from "../actions";
 
 interface Props {
   projectId: string;
@@ -17,8 +17,8 @@ export function RiskForm(p: Props) {
   const [form, setForm] = useState({
     title: "",
     description: "",
-    severity: "medium" as const,
-    likelihood: "possible" as const,
+    severity: "medium",
+    likelihood: "possible",
     mitigation: "",
     owner_id: "",
     next_review_at: "",
@@ -27,22 +27,26 @@ export function RiskForm(p: Props) {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
-    const { error } = await supabaseBrowser().from("risks").insert({
-      organisation_id: p.organisationId,
-      project_id: p.projectId,
-      title: form.title,
-      description: form.description || null,
-      severity: form.severity,
-      likelihood: form.likelihood,
-      mitigation: form.mitigation || null,
-      owner_id: form.owner_id || null,
-      next_review_at: form.next_review_at || null,
-    });
-    setBusy(false);
-    if (error) return toast.error(error.message);
-    toast.success("Risk added");
-    router.push(`/projects/${p.projectId}/risks`);
-    router.refresh();
+    try {
+      await createRisk({
+        projectId: p.projectId,
+        organisationId: p.organisationId,
+        title: form.title,
+        description: form.description,
+        severity: form.severity,
+        likelihood: form.likelihood,
+        mitigation: form.mitigation,
+        ownerId: form.owner_id,
+        nextReviewAt: form.next_review_at,
+      });
+      toast.success("Risk added");
+      router.push(`/projects/${p.projectId}/risks`);
+      router.refresh();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed");
+    } finally {
+      setBusy(false);
+    }
   }
 
   const u = (k: keyof typeof form, v: any) => setForm((f) => ({ ...f, [k]: v }));
@@ -93,7 +97,7 @@ export function RiskForm(p: Props) {
           <input type="date" className="input" value={form.next_review_at} onChange={(e) => u("next_review_at", e.target.value)} />
         </div>
       </div>
-      <div className="flex items-center justify-end gap-2 border-t border-slate-200 px-5 py-3">
+      <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3">
         <button type="button" className="btn-secondary" onClick={() => router.back()}>Cancel</button>
         <button type="submit" disabled={busy} className="btn-primary">{busy ? "Saving…" : "Log risk"}</button>
       </div>

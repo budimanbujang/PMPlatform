@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
-import { supabaseBrowser } from "@/lib/supabase/client";
 import { RagBadge } from "@/components/ui/rag-badge";
 import type { Initiative, ProjectRag } from "@/types/database";
+import { addInitiative, deleteInitiative, setInitiativeRag } from "./actions";
 
 interface Props {
   projectId: string;
@@ -18,35 +18,41 @@ interface Props {
 export function InitiativeManager(p: Props) {
   const router = useRouter();
   const [form, setForm] = useState({ code: "", name: "", champion_id: "" });
+  const [pending, start] = useTransition();
 
-  async function add(e: React.FormEvent) {
+  function add(e: React.FormEvent) {
     e.preventDefault();
     const nextOrder = (p.initiatives[p.initiatives.length - 1]?.sort_order ?? 0) + 1;
-    const { error } = await supabaseBrowser().from("initiatives").insert({
-      organisation_id: p.organisationId,
-      project_id: p.projectId,
-      code: form.code.trim().toUpperCase(),
-      name: form.name.trim(),
-      champion_id: form.champion_id || null,
-      sort_order: nextOrder,
+    start(async () => {
+      try {
+        await addInitiative({
+          projectId: p.projectId,
+          organisationId: p.organisationId,
+          code: form.code,
+          name: form.name,
+          championId: form.champion_id,
+          sortOrder: nextOrder,
+        });
+        toast.success("Initiative added");
+        setForm({ code: "", name: "", champion_id: "" });
+        router.refresh();
+      } catch (e: any) { toast.error(e?.message ?? "Failed"); }
     });
-    if (error) return toast.error(error.message);
-    toast.success("Initiative added");
-    setForm({ code: "", name: "", champion_id: "" });
-    router.refresh();
   }
 
-  async function remove(id: string) {
+  function remove(id: string) {
     if (!confirm("Remove this initiative? All submissions on it will be cascade-deleted.")) return;
-    const { error } = await supabaseBrowser().from("initiatives").delete().eq("id", id);
-    if (error) return toast.error(error.message);
-    router.refresh();
+    start(async () => {
+      try { await deleteInitiative(id, p.projectId); router.refresh(); }
+      catch (e: any) { toast.error(e?.message ?? "Failed"); }
+    });
   }
 
-  async function setRag(id: string, rag: ProjectRag) {
-    const { error } = await supabaseBrowser().from("initiatives").update({ rag }).eq("id", id);
-    if (error) return toast.error(error.message);
-    router.refresh();
+  function setRag(id: string, rag: ProjectRag) {
+    start(async () => {
+      try { await setInitiativeRag(id, rag, p.projectId); router.refresh(); }
+      catch (e: any) { toast.error(e?.message ?? "Failed"); }
+    });
   }
 
   return (

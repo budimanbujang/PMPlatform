@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { supabaseBrowser } from "@/lib/supabase/client";
+import { createDeliverable } from "../actions";
 
 interface Props {
   projectId: string;
@@ -29,22 +29,26 @@ export function DeliverableForm(p: Props) {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
-    const { error } = await supabaseBrowser().from("deliverables").insert({
-      organisation_id: p.organisationId,
-      project_id: p.projectId,
-      title: form.title,
-      description: form.description || null,
-      acceptance_criteria: form.acceptance_criteria || null,
-      due_date: form.due_date || null,
-      owner_id: form.owner_id || null,
-      initiative_id: form.initiative_id || null,
-      milestone_id: form.milestone_id || null,
-    });
-    setBusy(false);
-    if (error) return toast.error(error.message);
-    toast.success("Deliverable created");
-    router.push(`/projects/${p.projectId}/deliverables`);
-    router.refresh();
+    try {
+      await createDeliverable({
+        projectId: p.projectId,
+        organisationId: p.organisationId,
+        title: form.title,
+        description: form.description,
+        acceptanceCriteria: form.acceptance_criteria,
+        dueDate: form.due_date,
+        ownerId: form.owner_id,
+        initiativeId: form.initiative_id,
+        milestoneId: form.milestone_id,
+      });
+      toast.success("Deliverable created");
+      router.push(`/projects/${p.projectId}/deliverables`);
+      router.refresh();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed");
+    } finally {
+      setBusy(false);
+    }
   }
 
   const u = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
@@ -90,7 +94,7 @@ export function DeliverableForm(p: Props) {
           </select>
         </div>
       </div>
-      <div className="flex items-center justify-end gap-2 border-t border-slate-200 px-5 py-3">
+      <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-3">
         <button type="button" className="btn-secondary" onClick={() => router.back()}>Cancel</button>
         <button type="submit" disabled={busy} className="btn-primary">{busy ? "Saving…" : "Create deliverable"}</button>
       </div>

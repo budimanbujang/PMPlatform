@@ -1,19 +1,27 @@
+import { sql } from "@/lib/db";
 import { RiskForm } from "./form";
-import { supabaseServer } from "@/lib/supabase/server";
+
+export const dynamic = "force-dynamic";
 
 export default async function NewRiskPage({ params }: { params: { id: string } }) {
-  const sb = supabaseServer();
-  const { data: project } = await sb.from("projects").select("id, organisation_id").eq("id", params.id).single();
-  const { data: members } = await sb.from("members")
-    .select("profile_id, profiles(full_name, email)").eq("project_id", params.id);
+  const [projectRows, members] = await Promise.all([
+    sql`SELECT id, organisation_id FROM projects WHERE id = ${params.id} LIMIT 1`,
+    sql`
+      SELECT m.profile_id, p.full_name, p.email
+      FROM members m LEFT JOIN profiles p ON p.id = m.profile_id
+      WHERE m.project_id = ${params.id}
+    `,
+  ]);
+  const project = projectRows[0] as any;
   if (!project) return null;
+
   return (
     <RiskForm
       projectId={project.id}
       organisationId={project.organisation_id}
-      owners={(members ?? []).map((m: any) => ({
+      owners={(members as any[]).map((m) => ({
         profile_id: m.profile_id,
-        name: m.profiles?.full_name ?? m.profiles?.email ?? "User",
+        name: m.full_name ?? m.email ?? "User",
       }))}
     />
   );

@@ -1,16 +1,21 @@
-import { supabaseServer } from "@/lib/supabase/server";
+import { sql } from "@/lib/db";
 import { BudgetForm } from "./form";
 
+export const dynamic = "force-dynamic";
+
 export default async function NewBudgetLinePage({ params }: { params: { id: string } }) {
-  const sb = supabaseServer();
-  const { data: project } = await sb.from("projects").select("id, organisation_id").eq("id", params.id).single();
-  const { data: initiatives } = await sb.from("initiatives").select("id, code, name").eq("project_id", params.id);
+  const [projectRows, initiatives] = await Promise.all([
+    sql`SELECT id, organisation_id FROM projects WHERE id = ${params.id} LIMIT 1`,
+    sql`SELECT id, code, name FROM initiatives WHERE project_id = ${params.id} ORDER BY sort_order`,
+  ]);
+  const project = projectRows[0] as any;
   if (!project) return null;
+
   return (
     <BudgetForm
       projectId={project.id}
       organisationId={project.organisation_id}
-      initiatives={initiatives ?? []}
+      initiatives={initiatives as any[]}
     />
   );
 }

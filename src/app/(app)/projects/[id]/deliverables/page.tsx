@@ -1,31 +1,33 @@
 import Link from "next/link";
 import { Target, Plus } from "lucide-react";
-import { supabaseServer } from "@/lib/supabase/server";
+import { sql } from "@/lib/db";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDate } from "@/lib/utils";
 import { DeliverableActions } from "./actions-menu";
-import type { Deliverable } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
 export default async function DeliverablesPage({ params }: { params: { id: string } }) {
-  const sb = supabaseServer();
-  const { data } = await sb.from("deliverables")
-    .select("*, owner:profiles!deliverables_owner_id_fkey(full_name, email)")
-    .eq("project_id", params.id)
-    .order("due_date", { nullsFirst: false });
+  const items = (await sql`
+    SELECT
+      d.id, d.title, d.description, d.status, d.due_date,
+      p.full_name AS owner_name, p.email AS owner_email
+    FROM deliverables d
+    LEFT JOIN profiles p ON p.id = d.owner_id
+    WHERE d.project_id = ${params.id}
+    ORDER BY d.due_date NULLS LAST
+  `) as any[];
 
-  const items = (data ?? []) as (Deliverable & { owner?: { full_name: string; email: string } })[];
   const overdueCount = items.filter((d) =>
-    d.due_date && new Date(d.due_date) < new Date() &&
-    !["complete", "cancelled"].includes(d.status)
+    d.due_date && new Date(d.due_date) < new Date()
+    && !["complete", "cancelled"].includes(d.status)
   ).length;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div className="text-sm text-slate-600">
-          {items.length} total · <span className="text-red-600 font-medium">{overdueCount} overdue</span>
+        <div className="text-sm text-fg3">
+          {items.length} total · <span className="text-red-600 dark:text-red-400 font-medium">{overdueCount} overdue</span>
         </div>
         <Link href={`/projects/${params.id}/deliverables/new`} className="btn-primary">
           <Plus className="mr-1.5 h-4 w-4" /> Add deliverable
@@ -53,10 +55,10 @@ export default async function DeliverablesPage({ params }: { params: { id: strin
                   <tr key={d.id}>
                     <td>
                       <div className="font-medium">{d.title}</div>
-                      {d.description && <div className="text-xs text-slate-500 line-clamp-1">{d.description}</div>}
+                      {d.description && <div className="text-xs text-fg3 line-clamp-1">{d.description}</div>}
                     </td>
-                    <td className="text-slate-700">{d.owner?.full_name ?? d.owner?.email ?? "—"}</td>
-                    <td className={overdue ? "text-red-600 font-medium" : "text-slate-600"}>{formatDate(d.due_date)}</td>
+                    <td>{d.owner_name ?? d.owner_email ?? "—"}</td>
+                    <td className={overdue ? "text-red-600 dark:text-red-400 font-medium" : ""}>{formatDate(d.due_date)}</td>
                     <td><StatusBadge status={d.status} /></td>
                     <td className="text-right"><DeliverableActions deliverableId={d.id} /></td>
                   </tr>
@@ -71,12 +73,12 @@ export default async function DeliverablesPage({ params }: { params: { id: strin
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, string> = {
-    not_started: "bg-slate-100 text-slate-700 border-slate-300",
-    in_progress: "bg-blue-50 text-blue-700 border-blue-200",
-    blocked:     "bg-red-50 text-red-700 border-red-200",
-    complete:    "bg-green-50 text-green-700 border-green-200",
-    cancelled:   "bg-slate-100 text-slate-500 border-slate-300 line-through",
+  const cls: Record<string, string> = {
+    not_started: "rag-grey",
+    in_progress: "rag-amber",
+    blocked:     "rag-red",
+    complete:    "rag-green",
+    cancelled:   "rag-grey",
   };
-  return <span className={`badge ${map[status] ?? ""} capitalize`}>{status.replace("_", " ")}</span>;
+  return <span className={`pill ${cls[status] ?? "rag-grey"} capitalize`}>{status.replace("_", " ")}</span>;
 }

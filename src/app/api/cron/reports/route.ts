@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireCronAuth } from "@/lib/cron/auth";
-import { supabaseService } from "@/lib/supabase/server";
+import { sql } from "@/lib/db";
 import { generateWeeklyReport } from "@/lib/reports/generate";
 import { sendEmail } from "@/lib/email/resend";
+import { signedReadUrl } from "@/lib/storage/azure-blob";
 import { isoWeekStart, isoWeekEnd, toISODate } from "@/lib/utils";
 
 export const runtime = "nodejs";
@@ -13,19 +14,18 @@ export async function POST(req: NextRequest) {
   const unauth = requireCronAuth(req);
   if (unauth) return unauth;
 
-  const sb = supabaseService();
-  // The reporting week is the one that just closed — if run on Tuesday, use current ISO week Mon–Sun.
   const weekStart = toISODate(isoWeekStart());
   const weekEnd = toISODate(isoWeekEnd());
 
-  const { data: projects } = await sb
-    .from("projects")
-    .select("id, code, name, organisation_id")
-    .eq("status", "active");
+  const projects = await sql`
+    SELECT id, code, name, organisation_id
+    FROM projects
+    WHERE status = 'active'
+  `;
 
   const results: Array<{ code: string; status: "ok" | "failed"; error?: string }> = [];
 
-  for (const p of projects ?? []) {
+  for (const p of projects as any[]) {
     try {
       const { pdfPath } = await generateWeeklyReport({
         projectId: p.id,
@@ -34,26 +34,26 @@ export async function POST(req: NextRequest) {
         organisationId: p.organisation_id,
       });
 
-      // Get TMO + IWC members to email the report to.
-      const { data: recipients } = await sb
-        .from("members")
-        .select("profile_id, role, profiles(email, full_name)")
-        .eq("project_id", p.id)
-        .in("role", ["tmo", "iwc", "sponsor", "executive"]);
+      const recipients = await sql`
+        SELECT DISTINCT pf.email
+        FROM members m
+        JOIN profiles pf ON pf.id = m.profile_id
+        WHERE m.project_id = ${p.id}
+          AND m.role IN ('tmo', 'iwc', 'sponsor', 'executive')
+          AND pf.email IS NOT NULL
+      `;
 
-      const emails = (recipients ?? [])
-        .map((r: any) => r.profiles?.email)
-        .filter(Boolean) as string[];
+      const emails = (recipients as any[]).map((r) => r.email).filter(Boolean);
 
       if (emails.length) {
-        const { data: signed } = await sb.storage.from("reports").createSignedUrl(pdfPath, 60 * 60 * 24 * 7);
-        const url = signed?.signedUrl;
+        // 7-day SAS URL for the emailed link (aligns with Supabase behaviour).
+        const url = signedReadUrl("reports", pdfPath, { expiresInSeconds: 60 * 60 * 24 * 7 });
         await sendEmail({
           to: emails,
           subject: `${p.code} Weekly Progress Report — ${weekStart}`,
           html: `<p>The weekly progress report for <b>${p.code} · ${p.name}</b> is ready.</p>
                  <p>Period: ${weekStart} → ${weekEnd}</p>
-                 ${url ? `<p><a href="${url}" style="background:#0284c7;color:#fff;padding:8px 14px;border-radius:6px;text-decoration:none;">Download PDF</a></p>` : ""}`,
+                 <p><a href="${url}" style="background:#b87d07;color:#fff;padding:8px 14px;border-radius:6px;text-decoration:none;">Download PDF</a></p>`,
         });
       }
 

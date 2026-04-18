@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { supabaseBrowser } from "@/lib/supabase/client";
+import { createBudgetLine } from "../actions";
 
 interface Props {
   projectId: string;
@@ -28,23 +28,27 @@ export function BudgetForm(p: Props) {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
-    const { error } = await supabaseBrowser().from("budget_lines").insert({
-      organisation_id: p.organisationId,
-      project_id: p.projectId,
-      initiative_id: form.initiative_id || null,
-      year: form.year,
-      quarter: form.quarter,
-      category: form.category,
-      description: form.description,
-      currency: form.currency,
-      planned_amount: form.planned_amount,
-      committed_amount: form.committed_amount,
-    });
-    setBusy(false);
-    if (error) return toast.error(error.message);
-    toast.success("Line added");
-    router.push(`/projects/${p.projectId}/budget`);
-    router.refresh();
+    try {
+      await createBudgetLine({
+        projectId: p.projectId,
+        organisationId: p.organisationId,
+        initiativeId: form.initiative_id,
+        year: form.year,
+        quarter: form.quarter,
+        category: form.category,
+        description: form.description,
+        currency: form.currency,
+        plannedAmount: form.planned_amount,
+        committedAmount: form.committed_amount,
+      });
+      toast.success("Line added");
+      router.push(`/projects/${p.projectId}/budget`);
+      router.refresh();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed");
+    } finally {
+      setBusy(false);
+    }
   }
 
   const u = (k: keyof typeof form, v: any) => setForm((f) => ({ ...f, [k]: v }));

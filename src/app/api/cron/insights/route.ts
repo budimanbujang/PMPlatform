@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireCronAuth } from "@/lib/cron/auth";
-import { supabaseService } from "@/lib/supabase/server";
+import { sql } from "@/lib/db";
 import { callClaudeWithRetry } from "@/lib/ai/claude";
 import { INSIGHT_DIGEST_SYSTEM } from "@/lib/ai/prompts";
 import { isoWeekStart, toISODate } from "@/lib/utils";
@@ -13,42 +13,33 @@ export async function POST(req: NextRequest) {
   const unauth = requireCronAuth(req);
   if (unauth) return unauth;
 
-  const sb = supabaseService();
   const weekStart = toISODate(isoWeekStart());
-
-  const { data: orgs } = await sb.from("organisations").select("id, name");
+  const orgs = await sql`SELECT id, name FROM organisations`;
 
   const output: Array<{ org: string; insights: number }> = [];
 
-  for (const org of orgs ?? []) {
-    const { data: projects } = await sb.from("projects")
-      .select("id, code, name, rag, status, department").eq("organisation_id", org.id)
-      .eq("status", "active");
-    if (!projects?.length) continue;
+  for (const org of orgs as any[]) {
+    const projects = await sql`
+      SELECT id, code, name, rag, status, department
+      FROM projects
+      WHERE organisation_id = ${org.id} AND status = 'active'
+    `;
+    if ((projects as any[]).length === 0) continue;
 
-    const projectIds = projects.map((p) => p.id);
-    const [{ data: submissions }, { data: risks }, { data: deliverables }] = await Promise.all([
-      sb.from("submissions")
-        .select("project_id, initiative_id, rag, status, headline, narrative, escalate, progress_pct")
-        .eq("period_start", weekStart)
-        .in("project_id", projectIds),
-      sb.from("risks")
-        .select("project_id, title, severity, likelihood, score, status")
-        .in("project_id", projectIds)
-        .in("status", ["open", "mitigating"]),
-      sb.from("deliverables")
-        .select("project_id, title, status, due_date")
-        .in("project_id", projectIds)
-        .in("status", ["not_started", "in_progress", "blocked"]),
+    const projectIds = (projects as any[]).map((p) => p.id);
+    const [subs, risks, deliverables] = await Promise.all([
+      sql`SELECT * FROM submissions WHERE period_start = ${weekStart} AND project_id = ANY(${projectIds})`,
+      sql`SELECT * FROM risks WHERE project_id = ANY(${projectIds}) AND status IN ('open','mitigating')`,
+      sql`SELECT * FROM deliverables WHERE project_id = ANY(${projectIds}) AND status IN ('not_started','in_progress','blocked')`,
     ]);
 
     const payload = {
       period: weekStart,
-      projects: projects.map((p) => ({
+      projects: (projects as any[]).map((p) => ({
         id: p.id, code: p.code, name: p.name, rag: p.rag, department: p.department,
-        submissions: (submissions ?? []).filter((s) => s.project_id === p.id),
-        risks: (risks ?? []).filter((r) => r.project_id === p.id),
-        deliverables: (deliverables ?? []).filter((d) => d.project_id === p.id),
+        submissions:  (subs         as any[]).filter((s) => s.project_id === p.id),
+        risks:        (risks        as any[]).filter((r) => r.project_id === p.id),
+        deliverables: (deliverables as any[]).filter((d) => d.project_id === p.id),
       })),
     };
 
@@ -69,19 +60,21 @@ export async function POST(req: NextRequest) {
 
     if (!parsed?.insights?.length) continue;
 
-    const rows = parsed.insights.map((i: any) => ({
-      organisation_id: org.id,
-      scope: "organisation",
-      scope_id: null,
-      kind: i.kind ?? "pattern",
-      severity: i.severity ?? "info",
-      headline: i.headline,
-      body_md: i.body_md,
-      supporting_data: i.supporting_data ?? null,
-    }));
-
-    await sb.from("ai_insights").insert(rows);
-    output.push({ org: org.name, insights: rows.length });
+    for (const i of parsed.insights) {
+      await sql`
+        INSERT INTO ai_insights (organisation_id, scope, kind, severity, headline, body_md, supporting_data)
+        VALUES (
+          ${org.id},
+          'organisation',
+          ${i.kind ?? 'pattern'},
+          ${i.severity ?? 'info'},
+          ${i.headline},
+          ${i.body_md ?? null},
+          ${i.supporting_data ? JSON.stringify(i.supporting_data) : null}::jsonb
+        )
+      `;
+    }
+    output.push({ org: org.name, insights: parsed.insights.length });
   }
 
   return NextResponse.json({ week: weekStart, output });

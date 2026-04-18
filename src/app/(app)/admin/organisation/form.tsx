@@ -2,15 +2,15 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { supabaseBrowser } from "@/lib/supabase/client";
 import type { Organisation } from "@/types/database";
+import { updateOrganisation } from "./actions";
 
 export function OrgSettings({ org }: { org: Organisation }) {
   const [form, setForm] = useState({
     name: org.name,
     slug: org.slug,
     domain: org.domain ?? "",
-    brand_primary: org.brand_primary ?? "#0284c7",
+    brand_primary: org.brand_primary ?? "#b87d07",
     region: org.region ?? "ap-southeast-1",
   });
   const [busy, setBusy] = useState(false);
@@ -18,10 +18,14 @@ export function OrgSettings({ org }: { org: Organisation }) {
   async function save(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
-    const { error } = await supabaseBrowser().from("organisations").update(form).eq("id", org.id);
-    setBusy(false);
-    if (error) return toast.error(error.message);
-    toast.success("Saved");
+    try {
+      await updateOrganisation({ id: org.id, ...form });
+      toast.success("Saved");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Failed");
+    } finally {
+      setBusy(false);
+    }
   }
 
   const u = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
@@ -55,7 +59,7 @@ export function OrgSettings({ org }: { org: Organisation }) {
           </select>
         </div>
       </div>
-      <div className="flex items-center justify-end border-t border-slate-200 px-5 py-3">
+      <div className="flex items-center justify-end border-t border-border px-5 py-3">
         <button type="submit" disabled={busy} className="btn-primary">{busy ? "Saving…" : "Save"}</button>
       </div>
     </form>

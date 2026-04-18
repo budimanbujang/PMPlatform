@@ -1,18 +1,26 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTransition } from "react";
 import { toast } from "sonner";
-import { supabaseBrowser } from "@/lib/supabase/client";
+import { closeRisk } from "./actions";
 
 export function RiskActions({ riskId }: { riskId: string }) {
   const router = useRouter();
-  async function close() {
-    const { error } = await supabaseBrowser().from("risks")
-      .update({ status: "closed" }).eq("id", riskId);
-    if (error) return toast.error(error.message);
-    router.refresh();
+  const [pending, start] = useTransition();
+
+  function close() {
+    start(async () => {
+      try {
+        await closeRisk(riskId);
+        router.refresh();
+      } catch (e: any) {
+        toast.error(e?.message ?? "Failed");
+      }
+    });
   }
+
   return (
-    <button type="button" onClick={close} className="btn-ghost text-xs">Close</button>
+    <button type="button" onClick={close} disabled={pending} className="btn-ghost text-xs">Close</button>
   );
 }

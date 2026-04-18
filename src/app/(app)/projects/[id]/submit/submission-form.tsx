@@ -4,11 +4,10 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Upload, X } from "lucide-react";
-import { supabaseBrowser } from "@/lib/supabase/client";
 import type {
   Initiative, Project, ProjectRag, Submission, SubmissionTemplate, DocumentTag,
 } from "@/types/database";
-import { saveSubmission, submitSubmission } from "./actions";
+import { saveSubmission, submitSubmission, uploadSubmissionDocument } from "./actions";
 
 interface Props {
   project: Project;
@@ -72,29 +71,20 @@ export function SubmissionForm(props: Props) {
       });
 
       if (files.length) {
-        const sb = supabaseBrowser();
         for (const { file, tag, description } of files) {
-          const path = `${props.project.organisation_id}/${props.project.id}/${saved.id}/${Date.now()}-${file.name}`;
-          const up = await sb.storage.from("project-documents").upload(path, file, {
-            cacheControl: "3600", upsert: false,
-          });
-          if (up.error) {
-            toast.error(`Upload failed: ${file.name} — ${up.error.message}`);
-            continue;
+          try {
+            const fd = new FormData();
+            fd.append("file", file);
+            fd.append("submissionId",   saved.id);
+            fd.append("projectId",      props.project.id);
+            fd.append("initiativeId",   initiativeId);
+            fd.append("organisationId", props.project.organisation_id);
+            fd.append("tag",            tag);
+            fd.append("description",    description);
+            await uploadSubmissionDocument(fd);
+          } catch (err: any) {
+            toast.error(`Upload failed: ${file.name} — ${err?.message ?? "unknown"}`);
           }
-          await sb.from("documents").insert({
-            organisation_id: props.project.organisation_id,
-            project_id: props.project.id,
-            initiative_id: initiativeId,
-            submission_id: saved.id,
-            storage_path: path,
-            file_name: file.name,
-            mime_type: file.type,
-            size_bytes: file.size,
-            tag,
-            description: description || null,
-            uploaded_by: props.profileId,
-          });
         }
       }
 
@@ -135,7 +125,7 @@ export function SubmissionForm(props: Props) {
           </div>
           <div>
             <label className="label">Reporting period</label>
-            <div className="input bg-slate-50">{props.periodStart} → {props.periodEnd}</div>
+            <div className="input bg-bg-muted">{props.periodStart} → {props.periodEnd}</div>
           </div>
         </div>
       </section>

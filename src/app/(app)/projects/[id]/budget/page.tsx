@@ -1,26 +1,32 @@
 import Link from "next/link";
 import { Wallet, Plus } from "lucide-react";
-import { supabaseServer } from "@/lib/supabase/server";
+import { sql } from "@/lib/db";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatCurrency } from "@/lib/utils";
-import type { BudgetLine } from "@/types/database";
 
 export const dynamic = "force-dynamic";
 
 export default async function BudgetPage({ params }: { params: { id: string } }) {
-  const sb = supabaseServer();
-  const [{ data: lines }, summaryRes] = await Promise.all([
-    sb.from("budget_lines")
-      .select("*, initiative:initiatives!budget_lines_initiative_id_fkey(code, name)")
-      .eq("project_id", params.id)
-      .order("year").order("quarter"),
-    sb.from("v_project_budget_summary")
-      .select("*").eq("project_id", params.id).maybeSingle(),
+  const [lines, summaryRows] = await Promise.all([
+    sql`
+      SELECT bl.*, i.code AS init_code, i.name AS init_name
+      FROM budget_lines bl
+      LEFT JOIN initiatives i ON i.id = bl.initiative_id
+      WHERE bl.project_id = ${params.id}
+      ORDER BY bl.year, bl.quarter NULLS LAST
+    `,
+    sql`
+      SELECT planned_total, committed_total, actual_total, variance_pct
+      FROM v_project_budget_summary
+      WHERE project_id = ${params.id}
+      LIMIT 1
+    `,
   ]);
 
-  const rows = (lines ?? []) as (BudgetLine & { initiative?: { code: string; name: string } })[];
-  const summary = summaryRes.data as any;
+  const rows = lines as any[];
+  const summary = (summaryRows[0] ?? null) as any;
   const currency = rows[0]?.currency ?? "MYR";
+  const variance = Number(summary?.variance_pct ?? 0);
 
   return (
     <div className="space-y-4">
@@ -28,12 +34,15 @@ export default async function BudgetPage({ params }: { params: { id: string } })
         <SummaryCard label="Planned"   value={formatCurrency(Number(summary?.planned_total ?? 0), currency)} />
         <SummaryCard label="Committed" value={formatCurrency(Number(summary?.committed_total ?? 0), currency)} />
         <SummaryCard label="Actuals"   value={formatCurrency(Number(summary?.actual_total ?? 0), currency)} />
-        <SummaryCard label="Variance"  value={`${summary?.variance_pct ?? 0}%`}
-                     tone={Number(summary?.variance_pct ?? 0) > 10 ? "red" : Number(summary?.variance_pct ?? 0) > 0 ? "amber" : "green"} />
+        <SummaryCard
+          label="Variance"
+          value={`${variance}%`}
+          tone={variance > 10 ? "red" : variance > 0 ? "amber" : "green"}
+        />
       </div>
 
       <div className="flex items-center justify-between">
-        <p className="text-sm text-slate-600">{rows.length} budget line(s)</p>
+        <p className="text-sm text-fg3">{rows.length} budget line(s)</p>
         <Link href={`/projects/${params.id}/budget/new`} className="btn-primary">
           <Plus className="mr-1.5 h-4 w-4" /> Add line
         </Link>
@@ -56,11 +65,11 @@ export default async function BudgetPage({ params }: { params: { id: string } })
               {rows.map((l) => (
                 <tr key={l.id}>
                   <td className="font-medium">{l.description}</td>
-                  <td className="text-slate-600">{l.initiative?.code ?? "—"}</td>
+                  <td>{l.init_code ?? "—"}</td>
                   <td>{l.year}{l.quarter ? ` · Q${l.quarter}` : ""}</td>
                   <td className="capitalize">{l.category}</td>
-                  <td className="text-right tabular-nums">{formatCurrency(l.planned_amount, l.currency)}</td>
-                  <td className="text-right tabular-nums">{formatCurrency(l.committed_amount, l.currency)}</td>
+                  <td className="text-right tabular">{formatCurrency(Number(l.planned_amount), l.currency)}</td>
+                  <td className="text-right tabular">{formatCurrency(Number(l.committed_amount), l.currency)}</td>
                 </tr>
               ))}
             </tbody>
@@ -73,14 +82,14 @@ export default async function BudgetPage({ params }: { params: { id: string } })
 
 function SummaryCard({ label, value, tone }: { label: string; value: string; tone?: "red" | "amber" | "green" }) {
   const toneClass =
-    tone === "red"   ? "text-red-700"   :
-    tone === "amber" ? "text-amber-700" :
-    tone === "green" ? "text-green-700" : "";
+    tone === "red"   ? "text-red-700 dark:text-red-300"   :
+    tone === "amber" ? "text-amber-700 dark:text-amber-300" :
+    tone === "green" ? "text-green-700 dark:text-green-300" : "";
   return (
     <div className="card">
       <div className="card-body">
-        <div className="text-xs text-slate-500">{label}</div>
-        <div className={`text-xl font-bold tabular-nums ${toneClass}`}>{value}</div>
+        <div className="text-xs text-fg3">{label}</div>
+        <div className={`text-xl font-bold tabular ${toneClass}`}>{value}</div>
       </div>
     </div>
   );

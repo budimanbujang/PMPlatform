@@ -1,7 +1,7 @@
 // Compiles the structured JSON payload that is handed to Claude to produce
-// the weekly report. Keep this layer deterministic — no AI here.
+// the weekly report. Deterministic — no AI here.
 
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { sql } from "@/lib/db";
 
 export interface ReportCompilation {
   project: {
@@ -45,64 +45,45 @@ export interface ReportCompilation {
 }
 
 export async function compileWeeklyReport(
-  sb: SupabaseClient,
   projectId: string,
   periodStart: string,
   periodEnd: string,
 ): Promise<ReportCompilation> {
-  const { data: project } = await sb
-    .from("projects")
-    .select("id, code, name, description, department, cadence, rag")
-    .eq("id", projectId)
-    .single();
+  const [projectRows, initiatives, risks, deliverables, budgetRows, currencyRows] = await Promise.all([
+    sql`SELECT id, code, name, description, department, cadence, rag FROM projects WHERE id = ${projectId} LIMIT 1`,
+    sql`SELECT id, code, name, rag FROM initiatives WHERE project_id = ${projectId} ORDER BY sort_order`,
+    sql`
+      SELECT title, severity, likelihood, score, status, mitigation
+      FROM risks
+      WHERE project_id = ${projectId} AND status IN ('open', 'mitigating')
+      ORDER BY score DESC LIMIT 15
+    `,
+    sql`
+      SELECT title, status, due_date
+      FROM deliverables
+      WHERE project_id = ${projectId}
+      ORDER BY due_date NULLS LAST LIMIT 25
+    `,
+    sql`SELECT * FROM v_project_budget_summary WHERE project_id = ${projectId} LIMIT 1`,
+    sql`SELECT currency FROM budget_lines WHERE project_id = ${projectId} LIMIT 1`,
+  ]);
+
+  const project = projectRows[0] as any;
   if (!project) throw new Error("Project not found");
 
-  const { data: initiatives } = await sb
-    .from("initiatives")
-    .select("id, code, name, rag")
-    .eq("project_id", projectId)
-    .order("sort_order");
-
-  const initiativeIds = (initiatives ?? []).map((i) => i.id);
-
-  const { data: submissions } = await sb
-    .from("submissions")
-    .select("*")
-    .in("initiative_id", initiativeIds.length ? initiativeIds : ["00000000-0000-0000-0000-000000000000"])
-    .eq("period_start", periodStart);
+  const initiativeIds = (initiatives as any[]).map((i) => i.id);
+  const submissions = initiativeIds.length
+    ? await sql`
+        SELECT * FROM submissions
+        WHERE initiative_id = ANY(${initiativeIds})
+          AND period_start = ${periodStart}
+      `
+    : [];
 
   const subsByInit = new Map<string, any>();
-  (submissions ?? []).forEach((s) => subsByInit.set(s.initiative_id, s));
+  (submissions as any[]).forEach((s) => subsByInit.set(s.initiative_id, s));
 
-  const { data: risks } = await sb
-    .from("risks")
-    .select("title, severity, likelihood, score, status, mitigation")
-    .eq("project_id", projectId)
-    .in("status", ["open", "mitigating"])
-    .order("score", { ascending: false })
-    .limit(15);
-
-  const { data: deliverables } = await sb
-    .from("deliverables")
-    .select("title, status, due_date")
-    .eq("project_id", projectId)
-    .order("due_date", { ascending: true })
-    .limit(25);
-
-  const { data: budget } = await sb
-    .from("v_project_budget_summary")
-    .select("*")
-    .eq("project_id", projectId)
-    .maybeSingle();
-
-  const { data: budgetCurrency } = await sb
-    .from("budget_lines")
-    .select("currency")
-    .eq("project_id", projectId)
-    .limit(1)
-    .maybeSingle();
-
-  const initiativesCompiled = (initiatives ?? []).map((i) => {
+  const initiativesCompiled = (initiatives as any[]).map((i) => {
     const sub = subsByInit.get(i.id);
     return {
       id: i.id, code: i.code, name: i.name, rag: i.rag,
@@ -129,18 +110,21 @@ export async function compileWeeklyReport(
       reason: i.submission?.escalate_reason ?? null,
     }));
 
+  const budget = budgetRows[0] as any;
+  const currency = (currencyRows[0] as any)?.currency ?? "MYR";
+
   return {
-    project: project as any,
+    project,
     period: { start: periodStart, end: periodEnd },
     initiatives: initiativesCompiled,
-    risks: (risks ?? []) as any,
-    deliverables: (deliverables ?? []) as any,
+    risks: risks as any,
+    deliverables: deliverables as any,
     budget: budget ? {
-      planned: Number(budget.planned_total ?? 0),
-      committed: Number(budget.committed_total ?? 0),
-      actual: Number(budget.actual_total ?? 0),
+      planned:      Number(budget.planned_total ?? 0),
+      committed:    Number(budget.committed_total ?? 0),
+      actual:       Number(budget.actual_total ?? 0),
       variance_pct: Number(budget.variance_pct ?? 0),
-      currency: budgetCurrency?.currency ?? "MYR",
+      currency,
     } : null,
     escalations,
   };
