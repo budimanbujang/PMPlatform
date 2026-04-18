@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
 import { toast } from "sonner";
 import { cn, formatDateTime } from "@/lib/utils";
+import { Markdown } from "@/components/ui/markdown";
 import type { AiInsight } from "@/types/database";
 import { acknowledgeInsight } from "./actions";
 
@@ -50,7 +51,9 @@ export function InsightCard({ insight }: { insight: AiInsight }) {
         )}
       </div>
       {insight.body_md && (
-        <p className="mt-2 whitespace-pre-wrap text-[12px] leading-[1.5] opacity-90">{insight.body_md}</p>
+        <div className="mt-2 opacity-90">
+          <Markdown>{insight.body_md}</Markdown>
+        </div>
       )}
       <div className="mt-2.5 text-[10px] opacity-60">{formatDateTime(insight.generated_at)}</div>
     </div>

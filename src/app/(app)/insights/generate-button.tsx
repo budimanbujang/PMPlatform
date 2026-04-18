@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { WormLoader } from "@/components/ui/worm-loader";
 
 export function GenerateInsightsButton() {
   const router = useRouter();
@@ -41,9 +42,19 @@ export function GenerateInsightsButton() {
   }
 
   return (
-    <button onClick={run} disabled={busy} className="btn-primary">
-      {busy ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Sparkles className="mr-1.5 h-4 w-4" />}
-      Generate now
+    <button
+      type="button"
+      onClick={run}
+      disabled={busy}
+      className="btn-primary"
+      aria-busy={busy}
+    >
+      {busy ? (
+        <WormLoader className="mr-1.5" />
+      ) : (
+        <Sparkles className="mr-1.5 h-4 w-4" />
+      )}
+      {busy ? "Generating…" : "Generate now"}
     </button>
   );
 }

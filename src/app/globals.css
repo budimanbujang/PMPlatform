@@ -192,3 +192,28 @@ html {
   outline: none;
   box-shadow: var(--shadow-focus);
 }
+
+/* =========================================================================
+   Trailing-worm loader (see components/ui/worm-loader.tsx).
+   4 circles chase around a rectangular path with staggered delays; the
+   gooey filter from components/ui/goo-filter.tsx blobs them together.
+   ========================================================================= */
+.worm-n1, .worm-n2, .worm-n3, .worm-n4 {
+  fill: currentColor;
+  animation: worm-path 1.8s ease-in-out infinite;
+}
+.worm-n2 { animation-delay: -0.15s; }
+.worm-n3 { animation-delay: -0.30s; }
+.worm-n4 { animation-delay: -0.45s; }
+
+@keyframes worm-path {
+  0%   { transform: translate(-7px, -5px); }
+  25%  { transform: translate( 7px, -5px); }
+  50%  { transform: translate( 7px,  5px); }
+  75%  { transform: translate(-7px,  5px); }
+  100% { transform: translate(-7px, -5px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .worm-n1, .worm-n2, .worm-n3, .worm-n4 { animation-duration: 3.6s; }
+}
