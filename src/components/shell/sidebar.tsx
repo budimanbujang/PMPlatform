@@ -47,14 +47,14 @@ export function Sidebar({ profile }: { profile: Profile }) {
       </div>
 
       <nav className="flex-1 min-h-0 overflow-y-auto px-2 py-3">
-        <div className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-fg4">
+        <div className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-fg4 dark:text-slate-400">
           Workspace
         </div>
         {workspace.map((i) => <NavLink key={i.href} item={i} active={isActive(i.href)} />)}
 
         {profile.is_platform_admin && (
           <>
-            <div className="mt-3 px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-fg4">
+            <div className="mt-3 px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-fg4 dark:text-slate-400">
               Admin
             </div>
             {admin.map((i) => <NavLink key={i.href} item={i} active={isActive(i.href)} />)}
@@ -62,8 +62,8 @@ export function Sidebar({ profile }: { profile: Profile }) {
         )}
       </nav>
 
-      <div className="border-t border-border px-4 py-3 text-[11px] text-fg3">
-        <div className="font-medium text-fg2">{profile.full_name ?? profile.email}</div>
+      <div className="border-t border-border px-4 py-3 text-[11px] text-fg3 dark:text-slate-400">
+        <div className="font-medium text-fg2 dark:text-slate-100">{profile.full_name ?? profile.email}</div>
         <div className="truncate">{profile.email}</div>
       </div>
     </aside>
@@ -78,8 +78,11 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
       className={cn(
         "flex items-center gap-2.5 rounded-md px-3 py-2 text-[13px] font-medium transition-colors duration-fast ease-standard",
         active
-          ? "bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300"
-          : "text-fg2 hover:bg-bg-muted",
+          ? "bg-brand-50 text-brand-700 dark:bg-brand-900/25 dark:text-brand-200"
+          // Inactive — default text is already readable in light mode;
+          // in dark mode boost to a brighter slate-200 equivalent so the
+          // menu reads clearly on the #0f172a surface.
+          : "text-fg2 dark:text-slate-200 hover:bg-bg-muted dark:hover:text-white",
       )}
     >
       <Icon className="h-4 w-4 stroke-[1.8] flex-shrink-0" />

@@ -48,6 +48,22 @@ const config: Config = {
           red:   "var(--rag-red)",
           grey:  "var(--rag-grey)",
         },
+
+        // Keep raw Tailwind `slate-*` utilities available for targeted
+        // overrides (e.g. dark:text-slate-200 on sidebar links).
+        slate: {
+          50:  "var(--slate-50)",
+          100: "var(--slate-100)",
+          200: "var(--slate-200)",
+          300: "var(--slate-300)",
+          400: "var(--slate-400)",
+          500: "var(--slate-500)",
+          600: "var(--slate-600)",
+          700: "var(--slate-700)",
+          800: "var(--slate-800)",
+          900: "var(--slate-900)",
+          950: "var(--slate-950)",
+        },
       },
       fontFamily: {
         sans:    ["var(--font-sans)", "system-ui", "sans-serif"],
