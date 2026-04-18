@@ -1,71 +1,194 @@
+@import "./tokens.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: 0 0% 100%;
-  --foreground: 222 47% 11%;
-  --muted: 210 40% 96%;
-  --border: 214 32% 91%;
+html, body { height: 100%; }
+
+html {
+  background: var(--bg-subtle);
+  color: var(--fg1);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  font-feature-settings: "ss01", "cv02";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-html, body {
-  height: 100%;
-}
+::selection { background: var(--brand-200); color: var(--fg1); }
 
-body {
-  background: hsl(var(--background));
-  color: hsl(var(--foreground));
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+/* =========================================================================
+   Display typography — Gilroy ExtraBold for h1/h2 per the design
+   ========================================================================= */
+.display-h1 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 36px;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  color: var(--fg1);
 }
+.display-h2 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 28px;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  color: var(--fg1);
+}
+.eyebrow {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg3);
+}
+.tabular { font-variant-numeric: tabular-nums; }
 
 @layer components {
+  /* ---------- Cards ---------- */
   .card {
-    @apply rounded-lg border border-slate-200 bg-white shadow-sm;
+    @apply rounded-md border border-border bg-surface shadow-sm;
   }
   .card-header {
-    @apply flex items-center justify-between border-b border-slate-200 px-5 py-4;
+    @apply flex items-center justify-between border-b border-border px-5 py-[14px];
+  }
+  .card-title {
+    @apply text-[14px] font-semibold text-fg1;
   }
   .card-body {
     @apply p-5;
   }
+  .card-link {
+    @apply text-[13px] text-fg-brand hover:underline;
+  }
+
+  /* ---------- Buttons ---------- */
   .btn {
-    @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors
-      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1
-      disabled:pointer-events-none disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md text-[13px] font-medium
+           transition-colors duration-normal ease-standard whitespace-nowrap
+           focus-visible:outline-none focus-visible:shadow-focus
+           disabled:pointer-events-none disabled:opacity-50;
+    padding: 8px 16px;
   }
   .btn-primary {
-    @apply btn bg-brand-600 text-white hover:bg-brand-700 px-4 py-2;
+    @apply btn bg-brand-600 text-white hover:bg-brand-700;
   }
   .btn-secondary {
-    @apply btn bg-white text-slate-900 border border-slate-300 hover:bg-slate-50 px-4 py-2;
+    @apply btn bg-surface text-fg1 border border-border-strong hover:bg-bg-subtle;
   }
   .btn-ghost {
-    @apply btn text-slate-700 hover:bg-slate-100 px-3 py-2;
+    @apply btn bg-transparent text-fg2 hover:bg-bg-muted;
+    padding: 8px 12px;
   }
+  .btn-ai {
+    @apply btn text-white;
+    background: linear-gradient(90deg, var(--ai-from) 0%, var(--ai-to) 100%);
+  }
+  .btn-ai:hover { filter: brightness(1.08); }
+
+  /* ---------- Inputs ---------- */
   .input {
-    @apply block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm
-      placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500;
+    @apply block w-full rounded-md border border-border-strong bg-surface text-[13px] text-fg1
+           placeholder:text-fg4
+           focus:outline-none focus:border-brand-500
+           focus:[box-shadow:0_0_0_1px_var(--brand-500)];
+    padding: 8px 12px;
+    font-family: var(--font-sans);
   }
   .label {
-    @apply block text-sm font-medium text-slate-700 mb-1.5;
+    @apply block text-[13px] font-medium text-fg2 mb-1.5;
   }
-  .badge {
-    @apply inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium;
+
+  /* ---------- Badges / pills ---------- */
+  .pill {
+    @apply inline-flex items-center gap-1.5 rounded-full border text-[11px] font-medium;
+    padding: 2px 10px;
   }
+  .pill .dot { @apply h-1.5 w-1.5 rounded-full; }
+
+  .rag-green { background: var(--rag-green-bg); color: var(--rag-green-fg); border-color: var(--rag-green-border); }
+  .rag-amber { background: var(--rag-amber-bg); color: var(--rag-amber-fg); border-color: var(--rag-amber-border); }
+  .rag-red   { background: var(--rag-red-bg);   color: var(--rag-red-fg);   border-color: var(--rag-red-border); }
+  .rag-grey  { background: var(--rag-grey-bg);  color: var(--rag-grey-fg);  border-color: var(--rag-grey-border); }
+
+  /* ---------- Stat cards ---------- */
+  .stat {
+    @apply flex items-center gap-3 rounded-md border border-border bg-surface shadow-sm
+           transition-shadow duration-normal ease-standard hover:shadow-md;
+    padding: 16px;
+  }
+  .stat-well {
+    @apply flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md;
+    background: var(--brand-50);
+    color: var(--brand-600);
+  }
+  .stat-n { @apply text-[22px] font-bold tabular leading-none text-fg1; }
+  .stat-l { @apply text-[11px] text-fg3 mt-0.5; }
+
+  /* ---------- Tables ---------- */
   .table-wrap {
-    @apply overflow-hidden rounded-lg border border-slate-200;
+    @apply overflow-hidden rounded-md border border-border;
   }
   .table {
-    @apply w-full text-sm;
+    @apply w-full text-[13px];
+    border-collapse: collapse;
   }
   .table thead {
-    @apply bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600;
+    background: var(--bg-subtle);
   }
-  .table th, .table td {
-    @apply px-4 py-3 border-b border-slate-100;
+  .table thead th {
+    @apply text-left text-[10px] font-semibold uppercase tracking-wider text-fg2;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
   }
-  .table tr:last-child td {
-    @apply border-b-0;
+  .table tbody td {
+    @apply text-fg2;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--bg-muted);
   }
+  .table tbody tr:last-child td { border-bottom: 0; }
+  .table a {
+    @apply font-medium;
+    color: var(--fg-brand);
+  }
+  .table a:hover { text-decoration: underline; }
+
+  /* ---------- Insight cards ---------- */
+  .insight {
+    @apply rounded-md border p-4;
+  }
+  .insight-critical { background: var(--insight-critical-bg); border-color: var(--insight-critical-border); color: var(--insight-critical-fg); }
+  .insight-warn     { background: var(--insight-warn-bg);     border-color: var(--insight-warn-border);     color: var(--insight-warn-fg); }
+  .insight-notice   { background: var(--insight-notice-bg);   border-color: var(--insight-notice-border);   color: var(--insight-notice-fg); }
+  .insight-info     { background: var(--insight-info-bg);     border-color: var(--insight-info-border);     color: var(--insight-info-fg); }
+
+  /* ---------- App shell ---------- */
+  .app-shell {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    height: 100vh;
+    background: var(--bg-subtle);
+  }
+  .app-main {
+    display: grid;
+    grid-template-rows: 56px 1fr;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .app-content {
+    overflow-y: auto;
+    padding: 24px 32px 48px;
+  }
+}
+
+/* =========================================================================
+   Utility-ish extras used in a couple of places
+   ========================================================================= */
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
 }

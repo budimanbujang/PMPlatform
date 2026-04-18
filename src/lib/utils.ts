@@ -11,12 +11,9 @@ export function ragLabel(rag: ProjectRag): string {
 }
 
 export function ragClasses(rag: ProjectRag): string {
-  return {
-    green: "bg-green-100 text-green-800 border-green-300",
-    amber: "bg-amber-100 text-amber-800 border-amber-300",
-    red: "bg-red-100 text-red-800 border-red-300",
-    grey: "bg-slate-100 text-slate-700 border-slate-300",
-  }[rag];
+  // Maps to the token-driven pill classes defined in globals.css
+  // so callers that don't use <RagBadge> still get the correct styling.
+  return { green: "rag-green", amber: "rag-amber", red: "rag-red", grey: "rag-grey" }[rag];
 }
 
 export function formatCurrency(amount: number, currency = "MYR"): string {
