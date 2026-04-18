@@ -49,50 +49,74 @@ const config: NextAuthConfig = {
   ],
 
   callbacks: {
-    // Runs on every sign-in. We upsert the profile row here; if this returns
-    // false the flow aborts and the user sees an error page.
-    async signIn({ user, account }) {
-      if (account?.provider !== "azure-ad") return false;
-      const email = user.email?.toLowerCase();
-      if (!email) return false;
+    // Runs on every sign-in. Upserts the profile row. Returning false here
+    // aborts the flow and the user sees /login?error=AccessDenied.
+    async signIn({ user, account, profile }) {
+      try {
+        // Microsoft ID tokens can put the address in any of these fields
+        // depending on tenant config. Take whichever is present.
+        const rawEmail =
+          user?.email ??
+          (profile as any)?.email ??
+          (profile as any)?.preferred_username ??
+          (profile as any)?.upn ??
+          "";
+        const email = String(rawEmail).toLowerCase().trim();
+        if (!email) {
+          console.error("[auth.signIn] no email on token", {
+            provider: account?.provider,
+            profileKeys: profile ? Object.keys(profile) : [],
+          });
+          return false;
+        }
 
-      const entraOid = account.providerAccountId;  // Entra object id
-      const fullName = user.name ?? null;
-      const avatarUrl = user.image ?? null;
+        const entraOid = account?.providerAccountId ?? (profile as any)?.oid ?? null;
+        const fullName =
+          user?.name ??
+          (profile as any)?.name ??
+          ((profile as any)?.given_name && (profile as any)?.family_name
+            ? `${(profile as any).given_name} ${(profile as any).family_name}`
+            : null);
+        const avatarUrl = user?.image ?? null;
 
-      // Find the organisation whose domain matches the user's email.
-      const domain = email.split("@")[1]?.toLowerCase() ?? "";
-      const matchingOrg = domain
-        ? await db.select({ id: organisations.id })
-            .from(organisations)
-            .where(eq(organisations.domain, domain))
-            .limit(1)
-        : [];
-      const orgId = matchingOrg[0]?.id ?? null;
+        // Match organisation by email domain.
+        const domain = email.split("@")[1]?.toLowerCase() ?? "";
+        const matchingOrg = domain
+          ? await db
+              .select({ id: organisations.id })
+              .from(organisations)
+              .where(eq(organisations.domain, domain))
+              .limit(1)
+          : [];
+        const orgId = matchingOrg[0]?.id ?? null;
 
-      // Upsert on email — profile rows survive across sign-ins even if the
-      // Entra oid changes (it shouldn't, but belt + braces).
-      await db
-        .insert(profiles)
-        .values({
-          email,
-          fullName,
-          avatarUrl,
-          entraOid,
-          organisationId: orgId,
-        })
-        .onConflictDoUpdate({
-          target: profiles.email,
-          set: {
-            entraOid,
+        await db
+          .insert(profiles)
+          .values({
+            email,
             fullName,
             avatarUrl,
-            organisationId: orgId ?? undefined,
-            updatedAt: new Date(),
-          },
-        });
+            entraOid,
+            organisationId: orgId,
+          })
+          .onConflictDoUpdate({
+            target: profiles.email,
+            set: {
+              entraOid,
+              fullName,
+              avatarUrl,
+              organisationId: orgId ?? undefined,
+              updatedAt: new Date(),
+            },
+          });
 
-      return true;
+        return true;
+      } catch (e) {
+        console.error("[auth.signIn] failed", e);
+        // Don't silently deny access on a DB hiccup — surface it in the logs,
+        // but still block the login so we don't leak a broken session.
+        return false;
+      }
     },
 
     // Stuff the profile into the JWT so session() can return it cheaply.
