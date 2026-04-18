@@ -95,33 +95,36 @@
 }
 
 [data-theme="dark"] {
-  --bg:           #0b1220;
-  --bg-subtle:    #0f172a;
-  --bg-muted:     #1e293b;
-  --surface:      #0f172a;
-  --surface-2:    #111c2e;
+  /* Neutral dark-grey palette — replaces the original navy-based dark
+     surfaces. The sidebar hard-codes #0d0d0d in its className; these
+     vars drive every other surface. */
+  --bg:           #141414;
+  --bg-subtle:    #171717;   /* page background behind cards (right side) */
+  --bg-muted:     #262626;   /* table head, hover ground */
+  --surface:      #1a1a1a;   /* card surface */
+  --surface-2:    #222222;   /* raised inside-a-card */
   --overlay:      rgba(0, 0, 0, 0.7);
 
-  --fg1:          #f1f5f9;
-  --fg2:          #cbd5e1;
-  --fg3:          #94a3b8;
-  --fg4:          #64748b;
-  --fg-inverse:   #0f172a;
+  --fg1:          #f5f5f5;
+  --fg2:          #d4d4d4;
+  --fg3:          #a3a3a3;
+  --fg4:          #737373;
+  --fg-inverse:   #0d0d0d;
   --fg-brand:     #f7d046;
 
-  --border:       #1e293b;
-  --border-strong:#334155;
+  --border:       #2a2a2a;
+  --border-strong:#404040;
   --border-focus: #eeba1f;
 
   --rag-green-bg: rgba(22, 163, 74, 0.15);  --rag-green-fg: #86efac; --rag-green-border: rgba(134, 239, 172, 0.35);
   --rag-amber-bg: rgba(245, 158, 11, 0.15); --rag-amber-fg: #fcd34d; --rag-amber-border: rgba(252, 211, 77, 0.35);
   --rag-red-bg:   rgba(220, 38, 38, 0.18);  --rag-red-fg:   #fca5a5; --rag-red-border:   rgba(252, 165, 165, 0.35);
-  --rag-grey-bg:  rgba(100, 116, 139, 0.2); --rag-grey-fg:  #cbd5e1; --rag-grey-border:  rgba(203, 213, 225, 0.35);
+  --rag-grey-bg:  rgba(163, 163, 163, 0.18); --rag-grey-fg: #e5e5e5; --rag-grey-border:  rgba(229, 229, 229, 0.35);
 
   --insight-critical-bg: rgba(220, 38, 38, 0.12);  --insight-critical-border: rgba(252, 165, 165, 0.35); --insight-critical-fg: #fca5a5;
   --insight-warn-bg:     rgba(245, 158, 11, 0.12); --insight-warn-border:     rgba(252, 211, 77, 0.35);  --insight-warn-fg:     #fcd34d;
   --insight-notice-bg:   rgba(14, 165, 233, 0.12); --insight-notice-border:   rgba(125, 211, 252, 0.35); --insight-notice-fg:   #7dd3fc;
-  --insight-info-bg:     #0f172a;                  --insight-info-border:     #1e293b;                   --insight-info-fg:     #cbd5e1;
+  --insight-info-bg:     #1a1a1a;                  --insight-info-border:     #2a2a2a;                   --insight-info-fg:     #d4d4d4;
 
   --shadow-xs: 0 1px 0 rgba(0, 0, 0, 0.35);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45), 0 1px 1px rgba(0, 0, 0, 0.3);

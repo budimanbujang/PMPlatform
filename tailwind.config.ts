@@ -102,7 +102,7 @@ const config: Config = {
         "login-gradient-light":
           "linear-gradient(to bottom right, var(--brand-50), #ffffff, var(--slate-100, #f1f5f9))",
         "login-gradient-dark":
-          "linear-gradient(to bottom right, #0b1220, #0f172a 60%, #111c2e)",
+          "linear-gradient(to bottom right, #0d0d0d, #141414 60%, #1a1a1a)",
       },
     },
   },

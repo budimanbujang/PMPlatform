@@ -98,8 +98,10 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
         active
           // Selected: cream/mustard ground with near-black text — user-specified #0d0d0d
           ? "bg-brand-50 text-[#0d0d0d]"
-          // Inactive: light-grey text in dark mode; hover lifts to #0d0d0d on the mustard tint
-          : "text-fg2 dark:text-slate-200 hover:bg-brand-50 hover:text-[#0d0d0d]",
+          // Inactive hover:
+          //   Light mode — cream ground + near-black text (matches selected look)
+          //   Dark mode  — dark-grey ground + white text so it stays readable on #0d0d0d
+          : "text-fg2 dark:text-slate-200 hover:bg-brand-50 hover:text-[#0d0d0d] dark:hover:bg-[#262626] dark:hover:text-white",
       )}
     >
       <Icon className="h-4 w-4 stroke-[1.8] flex-shrink-0" />
