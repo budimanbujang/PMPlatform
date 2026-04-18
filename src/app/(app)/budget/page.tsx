@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { Wallet } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
-import { supabaseServer } from "@/lib/supabase/server";
+import { sql } from "@/lib/db";
+import { requireProfile } from "@/lib/current-user";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatCurrency } from "@/lib/utils";
 
@@ -20,51 +21,39 @@ interface BudgetRow {
 }
 
 export default async function EnterpriseBudgetPage() {
-  const sb = supabaseServer();
+  const profile = await requireProfile();
 
-  // PostgREST can't infer relationships on a view, so the previous
-  // `v_project_budget_summary.select("projects!inner(...)")` returned empty.
-  // Query the view and the projects table separately, merge in JS, skip
-  // projects with no budget lines.
-  const [summaryRes, projectsRes] = await Promise.all([
-    sb.from("v_project_budget_summary")
-      .select("project_id, planned_total, committed_total, actual_total, variance_pct"),
-    sb.from("projects")
-      .select("id, code, name, status, department")
-      .in("status", ["active", "on_hold", "draft"]),
-  ]);
+  const raw = await sql`
+    SELECT
+      v.project_id,
+      v.planned_total, v.committed_total, v.actual_total, v.variance_pct,
+      p.code, p.name, p.status, p.department
+    FROM v_project_budget_summary v
+    JOIN projects p ON p.id = v.project_id
+    WHERE p.organisation_id = ${profile.organisation_id}
+  `;
 
-  const projectsById = new Map(
-    (projectsRes.data ?? []).map((p) => [p.id, p]),
-  );
-
-  const rows: BudgetRow[] = (summaryRes.data ?? [])
-    .map((s) => {
-      const p = projectsById.get(s.project_id);
-      if (!p) return null;
-      return {
-        project_id: s.project_id,
-        planned_total: Number(s.planned_total ?? 0),
-        committed_total: Number(s.committed_total ?? 0),
-        actual_total: Number(s.actual_total ?? 0),
-        variance_pct: Number(s.variance_pct ?? 0),
-        code: p.code,
-        name: p.name,
-        status: p.status,
-        department: p.department,
-      } as BudgetRow;
-    })
-    .filter((r): r is BudgetRow => r !== null)
+  const rows: BudgetRow[] = (raw as any[])
+    .map((r) => ({
+      project_id:      r.project_id,
+      planned_total:   Number(r.planned_total ?? 0),
+      committed_total: Number(r.committed_total ?? 0),
+      actual_total:    Number(r.actual_total ?? 0),
+      variance_pct:    Number(r.variance_pct ?? 0),
+      code:            r.code,
+      name:            r.name,
+      status:          r.status,
+      department:      r.department,
+    }))
     .filter((r) => r.planned_total > 0 || r.committed_total > 0 || r.actual_total > 0)
     .sort((a, b) => b.planned_total - a.planned_total);
 
   const totals = rows.reduce(
-    (acc, r) => {
-      acc.planned += r.planned_total;
-      acc.committed += r.committed_total;
-      acc.actual += r.actual_total;
-      return acc;
-    },
+    (acc, r) => ({
+      planned:   acc.planned   + r.planned_total,
+      committed: acc.committed + r.committed_total,
+      actual:    acc.actual    + r.actual_total,
+    }),
     { planned: 0, committed: 0, actual: 0 },
   );
 
@@ -105,20 +94,20 @@ export default async function EnterpriseBudgetPage() {
                   <td>
                     <Link
                       href={`/projects/${r.project_id}/budget`}
-                      className="text-brand-700 hover:underline font-medium"
+                      className="card-link font-medium"
                     >
                       {r.code} · {r.name}
                     </Link>
                   </td>
-                  <td className="text-slate-600">{r.department ?? "—"}</td>
-                  <td className="text-right tabular-nums">{formatCurrency(r.planned_total)}</td>
-                  <td className="text-right tabular-nums">{formatCurrency(r.committed_total)}</td>
-                  <td className="text-right tabular-nums">{formatCurrency(r.actual_total)}</td>
+                  <td>{r.department ?? "—"}</td>
+                  <td className="text-right tabular">{formatCurrency(r.planned_total)}</td>
+                  <td className="text-right tabular">{formatCurrency(r.committed_total)}</td>
+                  <td className="text-right tabular">{formatCurrency(r.actual_total)}</td>
                   <td>
-                    <span className={`badge ${
-                      r.variance_pct > 10 ? "bg-red-50 text-red-700 border-red-200"
-                      : r.variance_pct > 0 ? "bg-amber-50 text-amber-700 border-amber-200"
-                      : "bg-green-50 text-green-700 border-green-200"
+                    <span className={`pill ${
+                      r.variance_pct > 10 ? "rag-red"
+                      : r.variance_pct > 0 ? "rag-amber"
+                      : "rag-green"
                     }`}>
                       {r.variance_pct}%
                     </span>
@@ -137,8 +126,8 @@ function Card({ label, value }: { label: string; value: string }) {
   return (
     <div className="card">
       <div className="card-body">
-        <div className="text-xs text-slate-500">{label}</div>
-        <div className="text-xl font-bold tabular-nums">{value}</div>
+        <div className="text-xs text-fg3">{label}</div>
+        <div className="text-xl font-bold tabular">{value}</div>
       </div>
     </div>
   );

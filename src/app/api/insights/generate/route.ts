@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabaseService } from "@/lib/supabase/server";
+import { sql } from "@/lib/db";
 import { requireProfile } from "@/lib/current-user";
 import { callClaudeWithRetry } from "@/lib/ai/claude";
 import { INSIGHT_DIGEST_SYSTEM } from "@/lib/ai/prompts";
@@ -14,7 +14,6 @@ export async function POST() {
     if (!profile.organisation_id) {
       return NextResponse.json({ error: "Profile not attached to an organisation" }, { status: 400 });
     }
-
     if (!process.env.ANTHROPIC_API_KEY) {
       return NextResponse.json(
         { error: "ANTHROPIC_API_KEY not configured on the server" },
@@ -22,31 +21,32 @@ export async function POST() {
       );
     }
 
-    const sb = supabaseService();
+    const orgId = profile.organisation_id;
     const weekStart = toISODate(isoWeekStart());
 
-    const { data: projects, error: projErr } = await sb.from("projects")
-      .select("id, code, name, rag, department, status")
-      .eq("organisation_id", profile.organisation_id)
-      .eq("status", "active");
+    const projects = await sql`
+      SELECT id, code, name, rag, department, status
+      FROM projects
+      WHERE organisation_id = ${orgId} AND status = 'active'
+    `;
+    if (projects.length === 0) {
+      return NextResponse.json({ count: 0, insights: [], note: "No active projects to analyse." });
+    }
 
-    if (projErr) return NextResponse.json({ error: projErr.message }, { status: 500 });
-    if (!projects?.length) return NextResponse.json({ count: 0, insights: [], note: "No active projects to analyse." });
-
-    const projectIds = projects.map((p) => p.id);
-    const [subsRes, risksRes, delivRes] = await Promise.all([
-      sb.from("submissions").select("*").eq("period_start", weekStart).in("project_id", projectIds),
-      sb.from("risks").select("*").in("project_id", projectIds).in("status", ["open", "mitigating"]),
-      sb.from("deliverables").select("*").in("project_id", projectIds).in("status", ["not_started", "in_progress", "blocked"]),
+    const projectIds = projects.map((p: any) => p.id);
+    const [subs, risks, deliverables] = await Promise.all([
+      sql`SELECT * FROM submissions WHERE period_start = ${weekStart} AND project_id = ANY(${projectIds})`,
+      sql`SELECT * FROM risks WHERE project_id = ANY(${projectIds}) AND status IN ('open','mitigating')`,
+      sql`SELECT * FROM deliverables WHERE project_id = ANY(${projectIds}) AND status IN ('not_started','in_progress','blocked')`,
     ]);
 
     const payload = {
       period: weekStart,
-      projects: projects.map((p) => ({
+      projects: (projects as any[]).map((p) => ({
         ...p,
-        submissions: (subsRes.data ?? []).filter((s) => s.project_id === p.id),
-        risks: (risksRes.data ?? []).filter((r) => r.project_id === p.id),
-        deliverables: (delivRes.data ?? []).filter((d) => d.project_id === p.id),
+        submissions:  (subs         as any[]).filter((s) => s.project_id === p.id),
+        risks:        (risks        as any[]).filter((r) => r.project_id === p.id),
+        deliverables: (deliverables as any[]).filter((d) => d.project_id === p.id),
       })),
     };
 
@@ -76,23 +76,26 @@ export async function POST() {
       });
     }
 
-    const rows = parsed.insights.map((i: any) => ({
-      organisation_id: profile.organisation_id!,
-      scope: "organisation" as const,
-      kind: i.kind ?? "pattern",
-      severity: i.severity ?? "info",
-      headline: String(i.headline ?? "Untitled insight").slice(0, 500),
-      body_md: i.body_md ?? null,
-      supporting_data: i.supporting_data ?? null,
-    }));
+    // Bulk insert insights
+    let inserted = 0;
+    for (const i of parsed.insights) {
+      await sql`
+        INSERT INTO ai_insights (organisation_id, scope, kind, severity, headline, body_md, supporting_data)
+        VALUES (
+          ${orgId},
+          'organisation',
+          ${i.kind ?? 'pattern'},
+          ${i.severity ?? 'info'},
+          ${String(i.headline ?? 'Untitled insight').slice(0, 500)},
+          ${i.body_md ?? null},
+          ${i.supporting_data ? JSON.stringify(i.supporting_data) : null}::jsonb
+        )
+      `;
+      inserted++;
+    }
 
-    const { error: insertErr } = await sb.from("ai_insights").insert(rows);
-    if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 });
-
-    return NextResponse.json({ count: rows.length, insights: rows });
+    return NextResponse.json({ count: inserted, insights: parsed.insights });
   } catch (e: any) {
-    // Top-level safety net — clients should always receive JSON, not an HTML
-    // error page that would produce "Unexpected end of JSON input".
     console.error("[/api/insights/generate] unhandled:", e);
     return NextResponse.json(
       { error: e?.message ?? "Unknown server error" },

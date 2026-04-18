@@ -1,41 +1,49 @@
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
-import { supabaseServer } from "@/lib/supabase/server";
+import { sql } from "@/lib/db";
+import { requireProfile } from "@/lib/current-user";
 import { EmptyState } from "@/components/ui/empty-state";
 
 export const dynamic = "force-dynamic";
 
 export default async function EnterpriseRisksPage() {
-  const sb = supabaseServer();
-  const { data } = await sb.from("risks")
-    .select("id, title, severity, likelihood, score, status, project:projects(id, code, name)")
-    .in("status", ["open", "mitigating"])
-    .order("score", { ascending: false })
-    .limit(50);
+  const profile = await requireProfile();
+
+  const rows = await sql`
+    SELECT
+      r.id, r.title, r.severity, r.likelihood, r.score, r.status,
+      p.id AS project_id, p.code AS project_code
+    FROM risks r
+    JOIN projects p ON p.id = r.project_id
+    WHERE r.organisation_id = ${profile.organisation_id}
+      AND r.status IN ('open', 'mitigating')
+    ORDER BY r.score DESC
+    LIMIT 50
+  `;
 
   return (
     <>
       <PageHeader title="Enterprise risk heatmap" description="Top risks across every active JCorp project." />
-      {!data?.length ? (
+      {rows.length === 0 ? (
         <EmptyState icon={AlertTriangle} title="No open risks" />
       ) : (
         <div className="table-wrap">
           <table className="table">
             <thead><tr><th>Risk</th><th>Project</th><th>Severity</th><th>Likelihood</th><th>Score</th><th>Status</th></tr></thead>
             <tbody>
-              {(data as any[]).map((r) => (
+              {rows.map((r: any) => (
                 <tr key={r.id}>
                   <td className="font-medium">{r.title}</td>
                   <td>
-                    <Link href={`/projects/${r.project?.id}`} className="text-brand-700 hover:underline">
-                      {r.project?.code}
+                    <Link href={`/projects/${r.project_id}`} className="card-link">
+                      {r.project_code}
                     </Link>
                   </td>
                   <td className="capitalize">{r.severity}</td>
                   <td className="capitalize">{r.likelihood.replace("_"," ")}</td>
                   <td>
-                    <span className={`badge ${r.score >= 12 ? "bg-red-50 text-red-700 border-red-200" : r.score >= 6 ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-slate-100 text-slate-700 border-slate-300"}`}>
+                    <span className={`pill ${r.score >= 12 ? "rag-red" : r.score >= 6 ? "rag-amber" : "rag-grey"}`}>
                       {r.score}
                     </span>
                   </td>
