@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
 import { Search, LogOut, Menu } from "lucide-react";
-import { supabaseBrowser } from "@/lib/supabase/client";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import type { Profile } from "@/types/database";
 
@@ -11,10 +11,8 @@ export function Topbar({ profile }: { profile: Profile }) {
   const router = useRouter();
   const [q, setQ] = useState("");
 
-  async function signOut() {
-    await supabaseBrowser().auth.signOut();
-    router.push("/login");
-    router.refresh();
+  async function doSignOut() {
+    await signOut({ callbackUrl: "/login" });
   }
 
   function onSearch(e: React.FormEvent) {
@@ -50,7 +48,7 @@ export function Topbar({ profile }: { profile: Profile }) {
         </div>
         <button
           type="button"
-          onClick={signOut}
+          onClick={doSignOut}
           className="rounded-md p-2 text-fg2 transition-colors hover:bg-bg-muted focus-visible:outline-none focus-visible:shadow-focus"
           title="Sign out"
           aria-label="Sign out"

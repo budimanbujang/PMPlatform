@@ -47,12 +47,23 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          # Build-time public vars — pulled from GitHub secrets so the
-          # Next.js client bundle is compiled with the right values.
+          # Build-time public vars — only NEXT_PUBLIC_* are inlined into
+          # the client bundle. Runtime secrets live in App Service.
+          NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
+          NEXT_PUBLIC_APP_NAME: JCorp PMPlatform
+          # Supabase vars still set at build time so components that still
+          # reference them don't crash until stages 4-5 finish migrating
+          # away. Safe to remove after stage 6.
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          NEXT_PUBLIC_APP_URL: ${{ secrets.NEXT_PUBLIC_APP_URL }}
-          NEXT_PUBLIC_APP_NAME: BB AI
+          # NextAuth NEEDS secret + URL at build time so the Auth.js client
+          # bundle compiles with the correct base URL.
+          NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          AZURE_AD_CLIENT_ID: ${{ secrets.AZURE_AD_CLIENT_ID }}
+          AZURE_AD_TENANT_ID: ${{ secrets.AZURE_AD_TENANT_ID }}
+          AZURE_AD_CLIENT_SECRET: ${{ secrets.AZURE_AD_CLIENT_SECRET }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Prune dev dependencies
         run: npm prune --omit=dev

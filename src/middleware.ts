@@ -1,56 +1,31 @@
-import { NextResponse, type NextRequest } from "next/server";
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
+// Middleware — NextAuth v5 style. `auth` exported from src/lib/auth.ts is
+// a higher-order function that wraps the request handler and injects the
+// session. The `authorized` callback in lib/auth.ts decides whether the
+// request may proceed; we only need to handle the redirect when it can't.
 
-const PUBLIC_PATHS = [
-  "/login",
-  "/auth/callback",
-  "/api/cron",
-  "/api/health",
-  "/setup",
-  "/_next",
-  "/favicon.ico",
-];
+import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
 
-export async function middleware(req: NextRequest) {
-  const res = NextResponse.next();
+export default auth((req) => {
   const { pathname } = req.nextUrl;
+  const isAuthed = !!req.auth;
 
-  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) return res;
+  const isPublic =
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/api/cron") ||
+    pathname.startsWith("/api/health") ||
+    pathname.startsWith("/setup") ||
+    pathname === "/favicon.ico";
 
-  const supabaseUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (isPublic) return NextResponse.next();
+  if (isAuthed) return NextResponse.next();
 
-  // If env isn't configured yet (e.g. first deploy), send to setup help
-  // instead of crashing every request.
-  if (!supabaseUrl || !supabaseAnon) {
-    const url = req.nextUrl.clone();
-    url.pathname = "/setup";
-    return NextResponse.redirect(url);
-  }
-
-  const supabase = createServerClient(supabaseUrl, supabaseAnon, {
-    cookies: {
-      get: (n: string) => req.cookies.get(n)?.value,
-      set: (n: string, v: string, o: CookieOptions) =>
-        res.cookies.set({ name: n, value: v, ...o }),
-      remove: (n: string, o: CookieOptions) =>
-        res.cookies.set({ name: n, value: "", ...o }),
-    },
-  });
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    const url = req.nextUrl.clone();
-    url.pathname = "/login";
-    url.searchParams.set("next", pathname);
-    return NextResponse.redirect(url);
-  }
-
-  return res;
-}
+  const url = req.nextUrl.clone();
+  url.pathname = "/login";
+  url.searchParams.set("next", pathname);
+  return NextResponse.redirect(url);
+});
 
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
