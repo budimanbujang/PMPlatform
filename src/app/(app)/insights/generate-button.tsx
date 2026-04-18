@@ -13,12 +13,28 @@ export function GenerateInsightsButton() {
     setBusy(true);
     try {
       const res = await fetch("/api/insights/generate", { method: "POST" });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "failed");
-      toast.success(`Generated ${json.count ?? 0} insights`);
+
+      // Response might not be JSON (e.g. on a 500 HTML error page). Read as
+      // text first, then try JSON, so the toast shows the real cause rather
+      // than "Unexpected end of JSON input".
+      const raw = await res.text();
+      let body: any = null;
+      try { body = raw ? JSON.parse(raw) : null; } catch { /* leave as text */ }
+
+      if (!res.ok) {
+        const msg = body?.error ?? (raw || `Request failed with status ${res.status}`);
+        throw new Error(msg);
+      }
+
+      const count = body?.count ?? 0;
+      if (count === 0) {
+        toast.info(body?.note ?? "No new insights this run.");
+      } else {
+        toast.success(`Generated ${count} insight${count === 1 ? "" : "s"}`);
+      }
       router.refresh();
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(e?.message ?? "Something went wrong");
     } finally {
       setBusy(false);
     }
