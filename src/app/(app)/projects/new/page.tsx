@@ -1,13 +1,18 @@
 import { PageHeader } from "@/components/ui/page-header";
 import { ProjectWizard } from "./project-wizard";
-import { supabaseServer } from "@/lib/supabase/server";
+import { sql } from "@/lib/db";
+import { requireProfile } from "@/lib/current-user";
+
+export const dynamic = "force-dynamic";
 
 export default async function NewProjectPage() {
-  const sb = supabaseServer();
-  const [{ data: templates }, { data: portfolios }, { data: programmes }] = await Promise.all([
-    sb.from("submission_templates").select("id, name, is_default").order("is_default", { ascending: false }),
-    sb.from("portfolios").select("id, code, name").order("name"),
-    sb.from("programmes").select("id, code, name, portfolio_id").order("name"),
+  const profile = await requireProfile();
+  const orgId = profile.organisation_id;
+
+  const [templates, portfolios, programmes] = await Promise.all([
+    sql`SELECT id, name, is_default FROM submission_templates WHERE organisation_id = ${orgId} ORDER BY is_default DESC`,
+    sql`SELECT id, code, name FROM portfolios WHERE organisation_id = ${orgId} ORDER BY name`,
+    sql`SELECT id, code, name, portfolio_id FROM programmes WHERE organisation_id = ${orgId} ORDER BY name`,
   ]);
 
   return (
@@ -17,9 +22,9 @@ export default async function NewProjectPage() {
         description="Projects join the platform via configuration — no code changes required."
       />
       <ProjectWizard
-        templates={templates ?? []}
-        portfolios={portfolios ?? []}
-        programmes={programmes ?? []}
+        templates={templates as any[]}
+        portfolios={portfolios as any[]}
+        programmes={programmes as any[]}
       />
     </>
   );

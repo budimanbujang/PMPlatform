@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { supabaseServer } from "@/lib/supabase/server";
+import { sql } from "@/lib/db";
 import { requireProfile } from "@/lib/current-user";
 
 const schema = z.object({
@@ -24,48 +24,47 @@ export async function createProject(input: z.infer<typeof schema>) {
   if (!profile.organisation_id) throw new Error("No organisation assigned to your profile");
 
   const data = schema.parse(input);
-  const sb = supabaseServer();
+  const orgId = profile.organisation_id;
 
-  const insertPayload: Record<string, unknown> = {
-    organisation_id: profile.organisation_id,
-    code: data.code.trim().toUpperCase(),
-    name: data.name.trim(),
-    description: data.description || null,
-    department: data.department || null,
-    cadence: data.cadence,
-    submission_deadline_dow: data.submission_deadline_dow,
-    submission_deadline_time: data.submission_deadline_time,
-    created_by: profile.id,
-    status: "draft",
-  };
-  if (data.template_id)  insertPayload.template_id  = data.template_id;
-  if (data.portfolio_id) insertPayload.portfolio_id = data.portfolio_id;
-  if (data.programme_id) insertPayload.programme_id = data.programme_id;
-  if (data.start_date)   insertPayload.start_date   = data.start_date;
-  if (data.target_end_date) insertPayload.target_end_date = data.target_end_date;
+  const [row] = await sql`
+    INSERT INTO projects (
+      organisation_id, code, name, description, department, cadence,
+      submission_deadline_dow, submission_deadline_time,
+      template_id, portfolio_id, programme_id, start_date, target_end_date,
+      created_by, status
+    )
+    VALUES (
+      ${orgId},
+      ${data.code.trim().toUpperCase()},
+      ${data.name.trim()},
+      ${data.description || null},
+      ${data.department || null},
+      ${data.cadence},
+      ${data.submission_deadline_dow},
+      ${data.submission_deadline_time},
+      ${data.template_id || null},
+      ${data.portfolio_id || null},
+      ${data.programme_id || null},
+      ${data.start_date || null},
+      ${data.target_end_date || null},
+      ${profile.id},
+      'draft'
+    )
+    RETURNING id
+  `;
 
-  const { data: row, error } = await sb
-    .from("projects")
-    .insert(insertPayload)
-    .select("id")
-    .single();
+  if (!row?.id) throw new Error("Failed to create project");
+  const projectId = row.id as string;
 
-  if (error) throw new Error(error.message);
+  await sql`
+    INSERT INTO members (organisation_id, project_id, profile_id, role)
+    VALUES (${orgId}, ${projectId}, ${profile.id}, 'pmo')
+  `;
 
-  await sb.from("members").insert({
-    organisation_id: profile.organisation_id,
-    project_id: row.id,
-    profile_id: profile.id,
-    role: "pmo",
-  });
+  await sql`
+    INSERT INTO project_lifecycle_events (project_id, from_status, to_status, actor_id, reason)
+    VALUES (${projectId}, NULL, 'draft', ${profile.id}, 'Project registered')
+  `;
 
-  await sb.from("project_lifecycle_events").insert({
-    project_id: row.id,
-    from_status: null,
-    to_status: "draft",
-    actor_id: profile.id,
-    reason: "Project registered",
-  });
-
-  return { id: row.id };
+  return { id: projectId };
 }

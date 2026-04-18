@@ -2,10 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { RagBadge } from "@/components/ui/rag-badge";
-import { supabaseServer } from "@/lib/supabase/server";
+import { sql } from "@/lib/db";
 import { formatDate } from "@/lib/utils";
 import type { Project } from "@/types/database";
 import { ProjectTabs } from "./tabs";
+
+export const dynamic = "force-dynamic";
 
 export default async function ProjectLayout({
   params,
@@ -14,10 +16,9 @@ export default async function ProjectLayout({
   params: { id: string };
   children: React.ReactNode;
 }) {
-  const sb = supabaseServer();
-  const { data, error } = await sb.from("projects").select("*").eq("id", params.id).single();
-  if (error || !data) notFound();
-  const p = data as Project;
+  const rows = await sql`SELECT * FROM projects WHERE id = ${params.id} LIMIT 1`;
+  const p = rows[0] as unknown as Project | undefined;
+  if (!p) notFound();
 
   return (
     <>
@@ -45,9 +46,9 @@ export default async function ProjectLayout({
 
 function Meta({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="rounded-md border border-slate-200 bg-white p-3">
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</div>
-      <div className="mt-0.5 text-sm font-medium text-slate-800">{value}</div>
+    <div className="rounded-md border border-border bg-surface p-3">
+      <div className="eyebrow">{label}</div>
+      <div className="mt-0.5 text-sm font-medium text-fg1">{value}</div>
     </div>
   );
 }

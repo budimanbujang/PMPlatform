@@ -3,7 +3,8 @@ import { FolderKanban, Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { RagBadge } from "@/components/ui/rag-badge";
 import { EmptyState } from "@/components/ui/empty-state";
-import { supabaseServer } from "@/lib/supabase/server";
+import { sql } from "@/lib/db";
+import { requireProfile } from "@/lib/current-user";
 import { formatDate } from "@/lib/utils";
 import type { Project } from "@/types/database";
 
@@ -14,16 +15,20 @@ export default async function ProjectsPage({
 }: {
   searchParams: { status?: string; dept?: string; rag?: string };
 }) {
-  const sb = supabaseServer();
-  let q = sb.from("projects")
-    .select("id, code, name, department, status, rag, cadence, sponsor_id, start_date, target_end_date")
-    .order("updated_at", { ascending: false });
-  if (searchParams.status) q = q.eq("status", searchParams.status);
-  if (searchParams.dept)   q = q.eq("department", searchParams.dept);
-  if (searchParams.rag)    q = q.eq("rag", searchParams.rag);
+  const profile = await requireProfile();
+  const orgId = profile.organisation_id;
+  const { status, rag, dept } = searchParams;
 
-  const { data: projects } = await q;
-  const items = (projects ?? []) as Project[];
+  const rows = await sql`
+    SELECT id, code, name, department, status, rag, cadence, sponsor_id, start_date, target_end_date
+    FROM projects
+    WHERE organisation_id = ${orgId}
+      AND (${status ?? null}::text IS NULL OR status::text = ${status ?? null})
+      AND (${rag ?? null}::text    IS NULL OR rag::text    = ${rag ?? null})
+      AND (${dept ?? null}::text   IS NULL OR department   = ${dept ?? null})
+    ORDER BY updated_at DESC
+  `;
+  const items = rows as unknown as Project[];
 
   return (
     <>
@@ -65,15 +70,15 @@ export default async function ProjectsPage({
                 <tr key={p.id}>
                   <td className="font-mono text-xs">{p.code}</td>
                   <td>
-                    <Link href={`/projects/${p.id}`} className="font-medium text-brand-700 hover:underline">
+                    <Link href={`/projects/${p.id}`} className="font-medium">
                       {p.name}
                     </Link>
                   </td>
-                  <td className="text-slate-600">{p.department ?? "—"}</td>
-                  <td className="capitalize text-slate-600">{p.status.replace("_", " ")}</td>
+                  <td>{p.department ?? "—"}</td>
+                  <td className="capitalize">{p.status.replace("_", " ")}</td>
                   <td><RagBadge rag={p.rag} /></td>
-                  <td className="capitalize text-slate-600">{p.cadence}</td>
-                  <td className="text-slate-600">{formatDate(p.target_end_date)}</td>
+                  <td className="capitalize">{p.cadence}</td>
+                  <td>{formatDate(p.target_end_date)}</td>
                 </tr>
               ))}
             </tbody>

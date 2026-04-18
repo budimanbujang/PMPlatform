@@ -43,6 +43,13 @@ function makeClient() {
 const pg = globalThis.__pmoPg ?? makeClient();
 if (process.env.NODE_ENV !== "production") globalThis.__pmoPg = pg;
 
+// Drizzle — typed query builder, use for mutations + joins.
 export const db = drizzle(pg, { schema, logger: false });
 export { schema };
 export type DB = typeof db;
+
+// Raw postgres.js tagged template — use for SELECTs where we want
+// snake_case rows matching the legacy Supabase response shape, so
+// existing server components don't need to change their property
+// accesses.  Example: `const rows = await sql\`SELECT id, organisation_id FROM projects\``.
+export const sql = pg;
