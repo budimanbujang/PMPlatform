@@ -1,6 +1,6 @@
 // Injected in <head> so the correct [data-theme] is applied before React
-// hydrates. Reads localStorage.theme; if absent, follows prefers-color-scheme.
-// Prevents the light-mode flash when the user has dark mode set.
+// hydrates. Reads localStorage.pmo-theme; if absent, defaults to dark.
+// This prevents the flash-of-light-theme on first load.
 //
 // Must be a server component that returns a script tag. No hooks, no imports.
 
@@ -9,8 +9,8 @@ export function ThemeInit() {
     (function () {
       try {
         var stored = localStorage.getItem('pmo-theme');
-        var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        var theme = stored || (prefersDark ? 'dark' : 'light');
+        // Default to dark mode for new users. Override via the theme toggle.
+        var theme = stored || 'dark';
         document.documentElement.setAttribute('data-theme', theme);
       } catch (_) { /* no-op */ }
     })();

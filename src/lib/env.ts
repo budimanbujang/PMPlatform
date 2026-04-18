@@ -21,7 +21,7 @@ const schema = z.object({
   TEAMS_WEBHOOK_URL: z.string().url().optional(),
   CRON_SECRET: z.string().min(16).optional(),
   NEXT_PUBLIC_APP_URL: tolerantUrl.default("http://localhost:3000"),
-  NEXT_PUBLIC_APP_NAME: z.string().default("JCorp PMO"),
+  NEXT_PUBLIC_APP_NAME: z.string().default("JCorp PMPlatform"),
 });
 
 export type Env = z.infer<typeof schema>;
@@ -53,6 +53,6 @@ export function publicEnv() {
     SUPABASE_URL: normaliseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL, ""),
     SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
     APP_URL: normaliseUrl(process.env.NEXT_PUBLIC_APP_URL, "http://localhost:3000"),
-    APP_NAME: process.env.NEXT_PUBLIC_APP_NAME ?? "JCorp PMO",
+    APP_NAME: process.env.NEXT_PUBLIC_APP_NAME ?? "JCorp PMPlatform",
   };
 }

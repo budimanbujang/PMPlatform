@@ -5,7 +5,7 @@ import { ThemeInit } from "@/components/theme/theme-init";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "JCorp PMO Platform",
+  title: "JCorp PMPlatform",
   description:
     "Source of truth for every project running in JCorp HoldCo — reporting, governance, insights.",
   icons: {
