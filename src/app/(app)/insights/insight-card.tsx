@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
 import { toast } from "sonner";
-import { supabaseBrowser } from "@/lib/supabase/client";
 import { cn, formatDateTime } from "@/lib/utils";
 import type { AiInsight } from "@/types/database";
+import { acknowledgeInsight } from "./actions";
 
 const toneClass: Record<AiInsight["severity"], string> = {
   critical: "insight-critical",
@@ -17,18 +17,17 @@ const toneClass: Record<AiInsight["severity"], string> = {
 
 export function InsightCard({ insight }: { insight: AiInsight }) {
   const router = useRouter();
-  const [busy, setBusy] = useState(false);
+  const [pending, start] = useTransition();
 
-  async function ack() {
-    setBusy(true);
-    const { data: { user } } = await supabaseBrowser().auth.getUser();
-    const { error } = await supabaseBrowser().from("ai_insights").update({
-      acknowledged_at: new Date().toISOString(),
-      acknowledged_by: user?.id,
-    }).eq("id", insight.id);
-    setBusy(false);
-    if (error) return toast.error(error.message);
-    router.refresh();
+  function ack() {
+    start(async () => {
+      try {
+        await acknowledgeInsight(insight.id);
+        router.refresh();
+      } catch (e: any) {
+        toast.error(e?.message ?? "Failed");
+      }
+    });
   }
 
   return (
@@ -43,7 +42,7 @@ export function InsightCard({ insight }: { insight: AiInsight }) {
         {!insight.acknowledged_at && (
           <button
             onClick={ack}
-            disabled={busy}
+            disabled={pending}
             className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-current opacity-80 hover:opacity-100 hover:bg-black/5 dark:hover:bg-white/10"
           >
             <Check className="h-3 w-3" /> Mark read

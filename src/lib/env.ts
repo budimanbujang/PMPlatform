@@ -39,12 +39,6 @@ const schema = z.object({
   CRON_SECRET: z.string().min(16).optional(),
   NEXT_PUBLIC_APP_URL: tolerantUrl.default("http://localhost:3000"),
   NEXT_PUBLIC_APP_NAME: z.string().default("JCorp PMPlatform"),
-
-  // --- Legacy Supabase (removed in stage 6; kept optional during the
-  //     migration so the app can run against either stack) ---
-  NEXT_PUBLIC_SUPABASE_URL: tolerantUrl.optional(),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().optional(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
 });
 
 export type Env = z.infer<typeof schema>;
@@ -71,8 +65,6 @@ function normaliseUrl(v: string | undefined, fallback: string): string {
 
 export function publicEnv() {
   return {
-    SUPABASE_URL: normaliseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL, ""),
-    SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
     APP_URL: normaliseUrl(process.env.NEXT_PUBLIC_APP_URL, "http://localhost:3000"),
     APP_NAME: process.env.NEXT_PUBLIC_APP_NAME ?? "JCorp PMPlatform",
   };

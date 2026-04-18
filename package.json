@@ -21,11 +21,8 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.30.0",
-    "@auth/drizzle-adapter": "^1.7.2",
     "@azure/storage-blob": "^12.26.0",
     "@react-pdf/renderer": "^3.4.5",
-    "@supabase/ssr": "^0.5.2",
-    "@supabase/supabase-js": "^2.45.6",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.36.4",
     "lucide-react": "^0.460.0",
