@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { BudgetBar } from "@/components/ui/budget-bar";
 
 export type ProjectCardProps = {
   id: string;
@@ -124,6 +125,12 @@ export function ProjectCard(p: ProjectCardProps) {
             {formatCurrency(p.budgetUsed, currency)}
             <span className="text-fg3 font-normal"> / {formatCurrency(p.budgetTotal, currency)}</span>
           </div>
+          <BudgetBar
+            used={p.budgetUsed}
+            total={p.budgetTotal}
+            className="mt-2"
+            ariaLabel={`Budget consumption for ${p.name}`}
+          />
         </div>
         <div>
           <div className="text-[11px] uppercase tracking-wider text-fg3">Tasks</div>
