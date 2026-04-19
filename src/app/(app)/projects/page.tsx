@@ -35,13 +35,17 @@ export default async function ProjectsPage({
   const filterStatus = searchParams.status ?? "";
 
   // Single aggregate query — joins budget summary view + deliverables,
-  // filters to the org, optionally narrows by status. ILIKE-free so no
-  // index pressure.
+  // filters to the org, optionally narrows by status.
+  //
+  // "Budget used" on the card = GREATEST(committed, actuals). Committed
+  // captures contracts / promises-to-spend (which often land well before the
+  // first actuals row is recorded), while actuals captures cash paid out.
+  // Whichever is higher is the honest "utilisation" number for an exec view.
   const rows = (await sql`
     SELECT
       p.id, p.code, p.name, p.description, p.status, p.priority,
       p.start_date, p.target_end_date,
-      COALESCE(b.actual_total,  0) AS budget_used,
+      GREATEST(COALESCE(b.committed_total, 0), COALESCE(b.actual_total, 0)) AS budget_used,
       COALESCE(b.planned_total, 0) AS budget_total,
       (SELECT currency FROM budget_lines bl WHERE bl.project_id = p.id LIMIT 1) AS currency,
       (SELECT COUNT(*)::int FROM deliverables d WHERE d.project_id = p.id)                             AS tasks_total,
