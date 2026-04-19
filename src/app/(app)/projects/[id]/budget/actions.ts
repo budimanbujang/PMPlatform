@@ -5,6 +5,166 @@ import { sql } from "@/lib/db";
 import { requireProfile } from "@/lib/current-user";
 import { recordAudit, buildDiff } from "@/lib/audit";
 
+// =============================================================================
+// CSV import for budget actuals
+// =============================================================================
+
+export interface ImportActualsRow {
+  budget_line_id: string;
+  period_end: string;
+  amount: number;
+  reference?: string | null;
+}
+
+export interface ImportActualsReport {
+  imported: number;
+  skipped: { row: number; reason: string }[];
+  totalAmount: number;
+}
+
+/**
+ * Parse a CSV string of budget actuals and insert valid rows into
+ * `budget_actuals`. Caller passes the raw CSV text from a file upload.
+ *
+ * Expected columns (header required, order flexible, extras ignored):
+ *   budget_line_id   uuid of an existing line on this project
+ *   period_end       YYYY-MM-DD
+ *   amount           number (RM)
+ *   reference        free-text invoice/PO ref (optional)
+ *
+ * Returns a per-import report with successes + per-row skip reasons.
+ * Audits one summary entry per import; doesn't audit each row to keep
+ * the changelog readable.
+ */
+export async function importActuals(
+  projectId: string,
+  csv: string,
+): Promise<ImportActualsReport> {
+  const profile = await requireProfile();
+  if (!profile.organisation_id) throw new Error("No organisation on profile");
+
+  const parsed = parseCsv(csv);
+  if (parsed.length === 0) {
+    return { imported: 0, skipped: [], totalAmount: 0 };
+  }
+
+  // Get the legal set of budget_line_ids for this project so we reject
+  // any UUIDs that don't belong to it.
+  const legalRows = await sql`
+    SELECT id, organisation_id
+    FROM budget_lines
+    WHERE project_id = ${projectId}
+  `;
+  const legalIds = new Map<string, string>(
+    (legalRows as any[]).map((r) => [r.id, r.organisation_id]),
+  );
+
+  const skipped: { row: number; reason: string }[] = [];
+  let imported = 0;
+  let totalAmount = 0;
+
+  for (let i = 0; i < parsed.length; i++) {
+    const row = parsed[i];
+    const lineNo = i + 2; // header is row 1
+    const lineId   = (row.budget_line_id ?? "").trim();
+    const period   = (row.period_end ?? "").trim();
+    const amountS  = (row.amount ?? "").toString().replace(/[, ]/g, "").trim();
+    const reference = (row.reference ?? "").trim() || null;
+
+    if (!lineId)            { skipped.push({ row: lineNo, reason: "missing budget_line_id" }); continue; }
+    if (!legalIds.has(lineId)) { skipped.push({ row: lineNo, reason: "budget_line_id does not belong to this project" }); continue; }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(period)) {
+      skipped.push({ row: lineNo, reason: "period_end not YYYY-MM-DD" });
+      continue;
+    }
+    const amount = Number(amountS);
+    if (!Number.isFinite(amount)) {
+      skipped.push({ row: lineNo, reason: "amount not a number" });
+      continue;
+    }
+    if (amount < 0) {
+      skipped.push({ row: lineNo, reason: "amount negative" });
+      continue;
+    }
+
+    const orgId = legalIds.get(lineId)!;
+    await sql`
+      INSERT INTO budget_actuals (
+        organisation_id, budget_line_id, period_end, actual_amount,
+        source, reference, recorded_by
+      )
+      VALUES (
+        ${orgId}, ${lineId}, ${period}, ${amount},
+        'csv_import', ${reference}, ${profile.id}
+      )
+    `;
+    imported++;
+    totalAmount += amount;
+  }
+
+  if (imported > 0) {
+    await recordAudit({
+      actor: profile,
+      action: "budget_actuals.import",
+      entityType: "project",
+      entityId: projectId,
+      diff: {
+        projectId,
+        imported_rows: imported,
+        skipped_rows: skipped.length,
+        total_amount: totalAmount,
+        source: "csv_import",
+      },
+    });
+  }
+
+  revalidatePath(`/projects/${projectId}/budget`);
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath(`/projects/${projectId}/changelog`);
+  revalidatePath("/budget");
+
+  return { imported, skipped, totalAmount };
+}
+
+// ---------------------------------------------------------------------------
+// Tiny CSV parser — handles quoted fields, escaped quotes, and CRLF.
+// Avoids pulling in a dependency for the few-hundred-row payloads we see.
+// ---------------------------------------------------------------------------
+function parseCsv(input: string): Record<string, string>[] {
+  const text = input.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").trim();
+  if (!text) return [];
+
+  const lines: string[][] = [];
+  let cur: string[] = [];
+  let field = "";
+  let inQ = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQ) {
+      if (c === '"' && text[i + 1] === '"') { field += '"'; i++; continue; }
+      if (c === '"') { inQ = false; continue; }
+      field += c;
+      continue;
+    }
+    if (c === '"') { inQ = true; continue; }
+    if (c === ",") { cur.push(field); field = ""; continue; }
+    if (c === "\n") { cur.push(field); lines.push(cur); cur = []; field = ""; continue; }
+    field += c;
+  }
+  cur.push(field);
+  lines.push(cur);
+
+  const header = (lines.shift() ?? []).map((h) => h.trim().toLowerCase());
+  return lines
+    .filter((ln) => ln.some((cell) => cell.trim() !== ""))
+    .map((ln) => {
+      const obj: Record<string, string> = {};
+      header.forEach((h, idx) => { obj[h] = (ln[idx] ?? "").trim(); });
+      return obj;
+    });
+}
+
 export async function createBudgetLine(input: {
   projectId: string;
   organisationId: string;

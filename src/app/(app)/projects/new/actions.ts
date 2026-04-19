@@ -25,6 +25,27 @@ export async function createProject(input: z.infer<typeof schema>) {
 
   const data = schema.parse(input);
   const orgId = profile.organisation_id;
+  const name = data.name.trim();
+  const code = data.code.trim().toUpperCase();
+
+  // Application-layer duplicate check — gives a friendlier error than the
+  // unique index would. The index is still the safety net for races.
+  const dupName = await sql`
+    SELECT id FROM projects
+    WHERE organisation_id = ${orgId} AND lower(name) = lower(${name})
+    LIMIT 1
+  `;
+  if (dupName.length > 0) {
+    throw new Error(`A project named "${name}" already exists. Pick a different name.`);
+  }
+  const dupCode = await sql`
+    SELECT id FROM projects
+    WHERE organisation_id = ${orgId} AND upper(code) = upper(${code})
+    LIMIT 1
+  `;
+  if (dupCode.length > 0) {
+    throw new Error(`A project with code "${code}" already exists. Pick a different code.`);
+  }
 
   const [row] = await sql`
     INSERT INTO projects (
@@ -35,8 +56,8 @@ export async function createProject(input: z.infer<typeof schema>) {
     )
     VALUES (
       ${orgId},
-      ${data.code.trim().toUpperCase()},
-      ${data.name.trim()},
+      ${code},
+      ${name},
       ${data.description || null},
       ${data.department || null},
       ${data.cadence},

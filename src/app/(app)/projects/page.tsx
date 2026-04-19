@@ -91,6 +91,7 @@ export default async function ProjectsPage({
       tasksTotal,
       startDate: r.start_date,
       endDate: r.target_end_date,
+      canDelete: profile.is_platform_admin,
     };
   });
 

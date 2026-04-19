@@ -4,6 +4,7 @@ import { sql } from "@/lib/db";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatCurrency } from "@/lib/utils";
 import { BudgetRowActions, type BudgetRow, type Initiative } from "./row-edit";
+import { ImportActualsButton, type BudgetLineLite } from "./import-actuals";
 
 export const dynamic = "force-dynamic";
 
@@ -45,11 +46,25 @@ export default async function BudgetPage({ params }: { params: { id: string } })
         />
       </div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-fg3">{rows.length} budget line(s)</p>
-        <Link href={`/projects/${params.id}/budget/new`} className="btn-primary">
-          <Plus className="mr-1.5 h-4 w-4" /> Add line
-        </Link>
+        <div className="flex items-center gap-2">
+          {rows.length > 0 && (
+            <ImportActualsButton
+              projectId={params.id}
+              budgetLines={rows.map((l) => ({
+                id: l.id,
+                description: l.description,
+                initiative_code: l.init_code ?? null,
+                year: l.year,
+                quarter: l.quarter,
+              })) as BudgetLineLite[]}
+            />
+          )}
+          <Link href={`/projects/${params.id}/budget/new`} className="btn-primary">
+            <Plus className="mr-1.5 h-4 w-4" /> Add line
+          </Link>
+        </div>
       </div>
 
       {rows.length === 0 ? (

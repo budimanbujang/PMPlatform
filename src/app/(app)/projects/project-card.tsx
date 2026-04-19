@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { BudgetBar } from "@/components/ui/budget-bar";
+import { ProjectDeleteButton } from "./delete-button";
 
 export type ProjectCardProps = {
   id: string;
@@ -17,6 +18,9 @@ export type ProjectCardProps = {
   tasksTotal: number;
   startDate: string | null;
   endDate: string | null;
+  // True when the current user can hard-delete this project.
+  // Drives the trash icon overlay; otherwise it isn't rendered.
+  canDelete?: boolean;
 };
 
 // ─── Status (maps DB values → user-facing labels per the spec) ──────────
@@ -71,9 +75,13 @@ export function ProjectCard(p: ProjectCardProps) {
   const budgetOver = p.budgetTotal > 0 && p.budgetUsed / p.budgetTotal >= 0.95;
 
   return (
+    <div className="group relative">
+      {p.canDelete && (
+        <ProjectDeleteButton projectId={p.id} projectName={p.name} />
+      )}
     <Link
       href={`/projects/${p.id}`}
-      className="group flex flex-col rounded-lg border border-border bg-surface p-5 shadow-sm transition-shadow duration-normal ease-standard hover:shadow-md focus-visible:outline-none focus-visible:shadow-focus"
+      className="flex flex-col rounded-lg border border-border bg-surface p-5 shadow-sm transition-shadow duration-normal ease-standard hover:shadow-md focus-visible:outline-none focus-visible:shadow-focus"
     >
       {/* Title row with status dot */}
       <div className="flex items-start gap-2">
@@ -148,5 +156,6 @@ export function ProjectCard(p: ProjectCardProps) {
         </div>
       </div>
     </Link>
+    </div>
   );
 }
