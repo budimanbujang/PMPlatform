@@ -18,6 +18,7 @@ import { relations, sql } from "drizzle-orm";
 // -----------------------------------------------------------------------------
 export const projectStatus    = pgEnum("project_status",    ["draft","active","on_hold","closed","archived"]);
 export const projectRag       = pgEnum("project_rag",       ["green","amber","red","grey"]);
+export const projectPriority  = pgEnum("project_priority",  ["low","medium","high","critical"]);
 export const memberRole       = pgEnum("member_role",       ["sponsor","executive","pmo","tmo","iwc","champion","io","delivery_lead","finance_controller","steering","viewer"]);
 export const documentTag      = pgEnum("document_tag",      ["evidence","deliverable","reference","other"]);
 export const submissionStatus = pgEnum("submission_status", ["draft","submitted","late","missed","void"]);
@@ -123,6 +124,7 @@ export const projects = pgTable("projects", {
   sponsorId:       uuid("sponsor_id").references(() => profiles.id),
   status:          projectStatus("status").notNull().default("draft"),
   rag:             projectRag("rag").notNull().default("grey"),
+  priority:        projectPriority("priority").notNull().default("medium"),
   cadence:         text("cadence").notNull().default("weekly"),
   submissionDeadlineDow:  smallint("submission_deadline_dow").default(1),
   submissionDeadlineTime: time("submission_deadline_time").default("15:00"),
