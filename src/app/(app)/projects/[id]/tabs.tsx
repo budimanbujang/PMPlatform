@@ -12,6 +12,7 @@ const tabs = [
   { key: "budget",      label: "Budget" },
   { key: "reports",     label: "Reports" },
   { key: "members",     label: "Members" },
+  { key: "changelog",   label: "Changelog" },
 ];
 
 export function ProjectTabs({ projectId }: { projectId: string }) {

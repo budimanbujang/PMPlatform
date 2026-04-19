@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, FolderKanban, FileText, Upload, Target,
   AlertTriangle, Wallet, Sparkles, Settings, ListChecks, Users2,
+  ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
 import type { Profile } from "@/types/database";
@@ -27,6 +28,7 @@ const admin: NavItem[] = [
   { href: "/admin/organisation", label: "Organisation", icon: Settings },
   { href: "/admin/members",      label: "Members",      icon: Users2 },
   { href: "/admin/templates",    label: "Templates",    icon: Upload },
+  { href: "/admin/audit",        label: "Audit log",    icon: ShieldCheck },
 ];
 
 // 4-point sparkle mark used as the JCorp PMPlatform brand glyph.
