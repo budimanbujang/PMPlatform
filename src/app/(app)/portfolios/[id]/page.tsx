@@ -1,9 +1,11 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { Layers, ArrowLeft, Plus } from "lucide-react";
+import { notFound, redirect } from "next/navigation";
+import { Layers, ArrowLeft, Plus, Lock, Globe } from "lucide-react";
 import { sql } from "@/lib/db";
 import { requireProfile } from "@/lib/current-user";
+import { getAuthContext, canViewPortfolio } from "@/lib/portfolio-access";
 import { ProjectCard, type ProjectCardProps } from "../../projects/project-card";
+import { AddExistingProjectButton } from "./add-existing-project";
 import { formatCurrency } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +15,11 @@ interface PortfolioRow {
   code: string;
   name: string;
   description: string | null;
+  division: string | null;
+  department: string | null;
+  organisation_id: string;
+  access_mode: string;
+  allowed_entra_groups: string[];
 }
 
 interface ProjectRow {
@@ -33,9 +40,11 @@ interface ProjectRow {
 
 export default async function PortfolioDetailPage({ params }: { params: { id: string } }) {
   const profile = await requireProfile();
+  const ctx = await getAuthContext();
 
   const portfolioRows = (await sql`
-    SELECT id, code, name, description
+    SELECT id, code, name, description, division, department,
+           organisation_id, access_mode, allowed_entra_groups
     FROM portfolios
     WHERE id = ${params.id}
       AND organisation_id = ${profile.organisation_id}
@@ -43,6 +52,34 @@ export default async function PortfolioDetailPage({ params }: { params: { id: st
   `) as unknown as PortfolioRow[];
   const portfolio = portfolioRows[0];
   if (!portfolio) notFound();
+
+  // RBAC — same rules as the list page.
+  if (ctx && !canViewPortfolio(ctx, {
+    organisation_id: portfolio.organisation_id,
+    access_mode: portfolio.access_mode,
+    allowed_entra_groups: portfolio.allowed_entra_groups ?? [],
+  })) {
+    redirect("/portfolios");
+  }
+
+  // Available projects for the "+ Add existing" picker — projects in this
+  // org that aren't already in this portfolio.
+  const availableProjectsRaw = (await sql`
+    SELECT p.id, p.code, p.name,
+           pf.name AS current_portfolio_name
+    FROM projects p
+    LEFT JOIN portfolios pf ON pf.id = p.portfolio_id
+    WHERE p.organisation_id = ${profile.organisation_id}
+      AND (p.portfolio_id IS NULL OR p.portfolio_id <> ${portfolio.id})
+      AND p.status <> 'archived'
+    ORDER BY p.name
+  `) as any[];
+  const availableProjects = availableProjectsRaw.map((p) => ({
+    id: p.id,
+    code: p.code,
+    name: p.name,
+    current_portfolio_name: p.current_portfolio_name,
+  }));
 
   const projectRows = (await sql`
     SELECT
@@ -105,13 +142,31 @@ export default async function PortfolioDetailPage({ params }: { params: { id: st
         <div className="flex h-10 w-10 flex-none items-center justify-center rounded-md bg-brand-50 text-brand-600 dark:bg-brand-900/20 dark:text-brand-300">
           <Layers className="h-5 w-5 stroke-[1.8]" />
         </div>
-        <div className="min-w-0">
-          <div className="font-mono text-[10px] uppercase tracking-wider text-fg3">
-            Portfolio · {portfolio.code}
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-fg3">
+            <span>Portfolio · {portfolio.code}</span>
+            <span
+              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 normal-case tracking-normal ${
+                portfolio.access_mode === "restricted"
+                  ? "border-amber-300 text-amber-700 dark:border-amber-500/40 dark:text-amber-300"
+                  : "border-border text-fg3"
+              }`}
+            >
+              {portfolio.access_mode === "restricted" ? (
+                <><Lock className="h-2.5 w-2.5" /> Restricted</>
+              ) : (
+                <><Globe className="h-2.5 w-2.5" /> Public</>
+              )}
+            </span>
           </div>
           <h1 className="display-h2 mt-0.5">{portfolio.name}</h1>
+          {(portfolio.division || portfolio.department) && (
+            <div className="mt-1 text-[12px] text-fg3">
+              {portfolio.division ?? "—"}{portfolio.department ? ` · ${portfolio.department}` : ""}
+            </div>
+          )}
           {portfolio.description && (
-            <p className="mt-1 text-[14px] text-fg3 max-w-3xl">{portfolio.description}</p>
+            <p className="mt-2 text-[14px] text-fg3 max-w-3xl">{portfolio.description}</p>
           )}
         </div>
       </div>
@@ -125,14 +180,20 @@ export default async function PortfolioDetailPage({ params }: { params: { id: st
         <Stat label="Budget"    value={`${totalBudget > 0 ? Math.round((totalUsed / totalBudget) * 100) : 0}%`} sub={formatCurrency(totalUsed) + " / " + formatCurrency(totalBudget)} />
       </div>
 
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="eyebrow">Projects in this portfolio</h2>
-        <Link
-          href={`/projects/new?portfolio=${portfolio.id}`}
-          className="btn-primary"
-        >
-          <Plus className="mr-1.5 h-4 w-4" /> Add project
-        </Link>
+        <div className="flex items-center gap-2">
+          <AddExistingProjectButton
+            portfolioId={portfolio.id}
+            available={availableProjects}
+          />
+          <Link
+            href={`/projects/new?portfolio=${portfolio.id}`}
+            className="btn-primary"
+          >
+            <Plus className="mr-1.5 h-4 w-4" /> New project
+          </Link>
+        </div>
       </div>
 
       {cards.length === 0 ? (

@@ -4,7 +4,9 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { sql } from "@/lib/db";
 import { requireProfile } from "@/lib/current-user";
+import { getAuthContext, canViewPortfolio } from "@/lib/portfolio-access";
 import { formatCurrency } from "@/lib/utils";
+import { CreatePortfolioButton } from "./create-button";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +15,11 @@ interface Row {
   code: string;
   name: string;
   description: string | null;
+  division: string | null;
+  department: string | null;
+  organisation_id: string;
+  access_mode: string;
+  allowed_entra_groups: string[];
   project_count: number;
   active_count: number;
   initiative_count: number;
@@ -22,10 +29,12 @@ interface Row {
 
 export default async function PortfoliosPage() {
   const profile = await requireProfile();
+  const ctx = await getAuthContext();
 
-  const rows = (await sql`
+  const allRows = (await sql`
     SELECT
-      pf.id, pf.code, pf.name, pf.description,
+      pf.id, pf.code, pf.name, pf.description, pf.division, pf.department,
+      pf.organisation_id, pf.access_mode, pf.allowed_entra_groups,
       COALESCE(p.project_count,    0) AS project_count,
       COALESCE(p.active_count,     0) AS active_count,
       COALESCE(p.initiative_count, 0) AS initiative_count,
@@ -59,11 +68,21 @@ export default async function PortfoliosPage() {
     ORDER BY pf.name
   `) as unknown as Row[];
 
+  // Apply RBAC server-side: keep portfolios this user is allowed to see.
+  const rows = ctx
+    ? allRows.filter((r) => canViewPortfolio(ctx, {
+        organisation_id: r.organisation_id,
+        access_mode: r.access_mode,
+        allowed_entra_groups: r.allowed_entra_groups ?? [],
+      }))
+    : [];
+
   return (
     <>
       <PageHeader
         title="Portfolios"
         description="Strategic containers grouping related projects. Each portfolio rolls up project health, budget, and initiative count."
+        actions={<CreatePortfolioButton />}
       />
 
       {rows.length === 0 ? (
@@ -93,6 +112,12 @@ export default async function PortfoliosPage() {
                     <div className="mt-0.5 font-mono text-[10px] uppercase tracking-wider text-fg3">{p.code}</div>
                   </div>
                 </div>
+
+                {(p.division || p.department) && (
+                  <div className="mt-2 text-[11px] text-fg3 line-clamp-2">
+                    {p.division ?? "—"}{p.department ? ` · ${p.department}` : ""}
+                  </div>
+                )}
 
                 {p.description && (
                   <p className="mt-2 text-[13px] leading-[1.5] text-fg3 line-clamp-2">

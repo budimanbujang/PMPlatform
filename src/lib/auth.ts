@@ -120,7 +120,16 @@ const config: NextAuthConfig = {
     },
 
     // Stuff the profile into the JWT so session() can return it cheaply.
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, profile: idTokenProfile }) {
+      // Capture Entra group memberships from the id_token claims, if the
+      // Entra app registration is configured to emit them. Falls back to
+      // an empty array so portfolio RBAC code can always assume an array.
+      // Configure in Entra: App registration → Token configuration →
+      //   Add groups claim → Security groups → ID token.
+      if (idTokenProfile && Array.isArray((idTokenProfile as any).groups)) {
+        token.entraGroups = (idTokenProfile as any).groups as string[];
+      }
+
       // On initial sign-in, `user` is populated. On subsequent requests only
       // `token` is present — but the data we stash here stays.
       if (user?.email || account?.providerAccountId) {
@@ -161,6 +170,7 @@ const config: NextAuthConfig = {
       (session.user as any).organisationId  = token.organisationId ?? null;
       (session.user as any).isPlatformAdmin = !!token.isPlatformAdmin;
       (session.user as any).jobTitle        = token.jobTitle ?? null;
+      (session.user as any).entraGroups     = (token.entraGroups as string[] | undefined) ?? [];
       return session;
     },
 
