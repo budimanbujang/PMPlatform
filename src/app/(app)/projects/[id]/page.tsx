@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { sql } from "@/lib/db";
 import { RagBadge } from "@/components/ui/rag-badge";
+import { Gantt, type GanttRow } from "@/components/ui/gantt";
 import { formatDate, formatCurrency } from "@/lib/utils";
 import type { Initiative, Risk, Deliverable, Submission } from "@/types/database";
 
@@ -58,6 +59,34 @@ export default async function ProjectOverview({ params }: { params: { id: string
   } | null;
 
   return (
+    <div className="space-y-6">
+      {/* Initiatives Gantt — full width above the rest of the overview */}
+      <section className="card">
+        <div className="card-header">
+          <h2 className="card-title">Initiative timeline</h2>
+          <Link
+            href={`/projects/${projectId}/initiatives`}
+            className="card-link"
+          >
+            Manage →
+          </Link>
+        </div>
+        <div className="card-body">
+          <Gantt
+            rows={initiatives.map<GanttRow>((i) => ({
+              id: i.id,
+              label: i.name,
+              sub: i.code,
+              start: (i as any).start_date,
+              end: (i as any).target_end_date,
+              rag: i.rag,
+              href: `/projects/${projectId}/initiatives`,
+            }))}
+            emptyMessage="Initiatives have no start / target end dates yet. Add them on the Initiatives tab to see the Gantt."
+          />
+        </div>
+      </section>
+
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
       <section className="card lg:col-span-2">
         <div className="card-header"><h2 className="card-title">Initiatives</h2></div>
@@ -162,6 +191,7 @@ export default async function ProjectOverview({ params }: { params: { id: string
           </div>
         </div>
       </section>
+    </div>
     </div>
   );
 }

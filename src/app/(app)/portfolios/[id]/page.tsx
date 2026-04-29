@@ -6,6 +6,7 @@ import { requireProfile } from "@/lib/current-user";
 import { getAuthContext, canViewPortfolio } from "@/lib/portfolio-access";
 import { ProjectCard, type ProjectCardProps } from "../../projects/project-card";
 import { AddExistingProjectButton } from "./add-existing-project";
+import { Gantt, type GanttRow } from "@/components/ui/gantt";
 import { formatCurrency } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -178,6 +179,23 @@ export default async function PortfolioDetailPage({ params }: { params: { id: st
         <Stat label="On hold"   value={totalAtRisk} tone="amber" />
         <Stat label="Completed" value={totalDone}   tone="green" />
         <Stat label="Budget"    value={`${totalBudget > 0 ? Math.round((totalUsed / totalBudget) * 100) : 0}%`} sub={formatCurrency(totalUsed) + " / " + formatCurrency(totalBudget)} />
+      </div>
+
+      {/* Gantt — projects on a month timeline */}
+      <div className="mb-6">
+        <h2 className="eyebrow mb-3">Timeline</h2>
+        <Gantt
+          rows={projectRows.map<GanttRow>((r) => ({
+            id: r.id,
+            label: r.name,
+            sub: r.code,
+            start: r.start_date,
+            end: r.target_end_date,
+            status: r.status,
+            href: `/projects/${r.id}`,
+          }))}
+          emptyMessage="No projects with start + target end dates yet."
+        />
       </div>
 
       <div className="mb-3 flex items-center justify-between gap-2">
