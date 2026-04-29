@@ -217,3 +217,30 @@ html {
 @media (prefers-reduced-motion: reduce) {
   .worm-n1, .worm-n2, .worm-n3, .worm-n4 { animation-duration: 3.6s; }
 }
+
+/* =========================================================================
+   Hollow hover ring — applied to every clickable card across the platform
+   (project / portfolio / initiative). Subtle outlined ring rather than a
+   filled hover so it works on both light and dark surfaces.
+   ========================================================================= */
+.card,
+.stat,
+a[class*="rounded-lg"][class*="border-border"][class*="bg-surface"] {
+  transition:
+    box-shadow var(--dur-normal) var(--ease-standard),
+    border-color var(--dur-normal) var(--ease-standard);
+}
+a.card:hover,
+a[class*="rounded-lg"][class*="border-border"][class*="bg-surface"]:hover,
+.stat:hover {
+  box-shadow:
+    0 0 0 2px rgba(217, 158, 11, 0.35),     /* brand-500 @ 35% — the hollow ring */
+    var(--shadow-md);
+}
+[data-theme="dark"] a.card:hover,
+[data-theme="dark"] a[class*="rounded-lg"][class*="border-border"][class*="bg-surface"]:hover,
+[data-theme="dark"] .stat:hover {
+  box-shadow:
+    0 0 0 2px rgba(247, 208, 70, 0.45),     /* brand-300 @ 45% — brighter for dark */
+    var(--shadow-md);
+}

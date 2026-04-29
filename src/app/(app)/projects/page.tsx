@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FolderKanban, Plus } from "lucide-react";
+import { FolderKanban, Layers } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { sql } from "@/lib/db";
@@ -36,13 +36,6 @@ export default async function ProjectsPage({
   const orgId = profile.organisation_id;
   const filterStatus = searchParams.status ?? "";
 
-  // Single aggregate query — joins budget summary view + deliverables,
-  // filters to the org, optionally narrows by status.
-  //
-  // "Budget used" on the card = GREATEST(committed, actuals). Committed
-  // captures contracts / promises-to-spend (which often land well before the
-  // first actuals row is recorded), while actuals captures cash paid out.
-  // Whichever is higher is the honest "utilisation" number for an exec view.
   const rows = (await sql`
     SELECT
       p.id, p.code, p.name, p.description, p.status, p.priority,
@@ -62,7 +55,6 @@ export default async function ProjectsPage({
     ORDER BY pf.name NULLS LAST, p.updated_at DESC
   `) as unknown as Row[];
 
-  // Counts per status for the filter chip labels
   const countRows = (await sql`
     SELECT status::text AS status, COUNT(*)::int AS count
     FROM projects
@@ -76,7 +68,7 @@ export default async function ProjectsPage({
     counts.total += Number(r.count);
   }
 
-  const cards: ProjectCardProps[] = rows.map((r) => {
+  const cards: (ProjectCardProps & { _portfolioId: string | null; _portfolioName: string })[] = rows.map((r) => {
     const tasksTotal = Number(r.tasks_total ?? 0);
     const tasksCompleted = Number(r.tasks_completed ?? 0);
     const progressPercentage =
@@ -99,24 +91,44 @@ export default async function ProjectsPage({
       portfolioId: r.portfolio_id,
       portfolioName: r.portfolio_name,
       canDelete: profile.is_platform_admin,
+      _portfolioId: r.portfolio_id,
+      _portfolioName: r.portfolio_name ?? "Independent",
     };
+  });
+
+  // Group cards by portfolio. Cards with no portfolio_id land under "Independent".
+  // Map preserves insertion order, so portfolios appear alphabetically (the
+  // SQL ORDER BY did the heavy lifting), with "Independent" pinned to the end.
+  const groups = new Map<string, { id: string | null; name: string; cards: typeof cards }>();
+  for (const c of cards) {
+    const key = c._portfolioId ?? "__independent__";
+    if (!groups.has(key)) {
+      groups.set(key, { id: c._portfolioId, name: c._portfolioName, cards: [] });
+    }
+    groups.get(key)!.cards.push(c);
+  }
+  const groupedList = Array.from(groups.values()).sort((a, b) => {
+    if (a.id === null) return 1;
+    if (b.id === null) return -1;
+    return a.name.localeCompare(b.name);
   });
 
   return (
     <>
       <PageHeader
         title="Project register"
-        description="Every project registered across JCorp HoldCo. Filter by status."
-        actions={
-          <Link href="/projects/new" className="btn-primary">
-            <Plus className="mr-1.5 h-4 w-4" /> New project
-          </Link>
-        }
+        description="Every project registered across JCorp HoldCo, grouped by the portfolio they belong to."
       />
 
       <div className="mb-5">
         <ProjectStatusFilter activeStatus={filterStatus} counts={counts} />
       </div>
+
+      <p className="mb-5 rounded-md border border-border bg-bg-subtle px-4 py-2.5 text-[12px] text-fg3">
+        Projects are now created from inside a portfolio. Visit{" "}
+        <Link href="/portfolios" className="font-medium text-fg-brand hover:underline">Portfolios</Link>{" "}
+        to add a new one.
+      </p>
 
       {cards.length === 0 ? (
         <EmptyState
@@ -125,13 +137,34 @@ export default async function ProjectsPage({
           description={
             filterStatus
               ? "Nothing in this status. Try another filter."
-              : "Create the first project to get started."
+              : "Open a portfolio and add the first project there."
           }
-          action={<Link href="/projects/new" className="btn-primary">Create project</Link>}
+          action={<Link href="/portfolios" className="btn-primary">Browse portfolios</Link>}
         />
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {cards.map((c) => <ProjectCard key={c.id} {...c} />)}
+        <div className="space-y-8">
+          {groupedList.map((group) => (
+            <section key={group.id ?? "independent"}>
+              <header className="mb-3 flex items-center justify-between">
+                <h2 className="flex items-center gap-2 text-[14px] font-semibold text-fg1">
+                  <Layers className="h-4 w-4 text-brand-600" />
+                  {group.id ? (
+                    <Link href={`/portfolios/${group.id}`} className="hover:underline">
+                      {group.name}
+                    </Link>
+                  ) : (
+                    <span className="text-fg2">{group.name}</span>
+                  )}
+                  <span className="ml-1 rounded-full bg-bg-muted px-2 py-0.5 text-[11px] font-medium tabular text-fg3">
+                    {group.cards.length}
+                  </span>
+                </h2>
+              </header>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {group.cards.map((c) => <ProjectCard key={c.id} {...c} />)}
+              </div>
+            </section>
+          ))}
         </div>
       )}
     </>

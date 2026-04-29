@@ -8,11 +8,12 @@ import { createProject } from "./actions";
 type Opt = { id: string; name: string; is_default?: boolean; portfolio_id?: string | null };
 
 export function ProjectWizard({
-  templates, portfolios, programmes,
+  templates, portfolios, programmes, defaultPortfolioId,
 }: {
   templates: Opt[];
   portfolios: Opt[];
   programmes: Opt[];
+  defaultPortfolioId?: string;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -23,7 +24,7 @@ export function ProjectWizard({
     department: "",
     cadence: "weekly" as "weekly" | "biweekly" | "monthly",
     template_id: templates.find((t) => t.is_default)?.id ?? "",
-    portfolio_id: "",
+    portfolio_id: defaultPortfolioId ?? "",
     programme_id: "",
     start_date: "",
     target_end_date: "",

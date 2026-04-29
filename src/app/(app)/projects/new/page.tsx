@@ -5,7 +5,11 @@ import { requireProfile } from "@/lib/current-user";
 
 export const dynamic = "force-dynamic";
 
-export default async function NewProjectPage() {
+export default async function NewProjectPage({
+  searchParams,
+}: {
+  searchParams: { portfolio?: string };
+}) {
   const profile = await requireProfile();
   const orgId = profile.organisation_id;
 
@@ -19,12 +23,13 @@ export default async function NewProjectPage() {
     <>
       <PageHeader
         title="Register a new project"
-        description="Projects join the platform via configuration — no code changes required."
+        description="Add a project under the chosen portfolio. Use the back link to pick a different portfolio."
       />
       <ProjectWizard
         templates={templates as any[]}
         portfolios={portfolios as any[]}
         programmes={programmes as any[]}
+        defaultPortfolioId={searchParams.portfolio ?? ""}
       />
     </>
   );

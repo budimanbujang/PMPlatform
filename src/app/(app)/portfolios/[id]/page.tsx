@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Layers, ArrowLeft } from "lucide-react";
+import { Layers, ArrowLeft, Plus } from "lucide-react";
 import { sql } from "@/lib/db";
 import { requireProfile } from "@/lib/current-user";
 import { ProjectCard, type ProjectCardProps } from "../../projects/project-card";
@@ -125,7 +125,15 @@ export default async function PortfolioDetailPage({ params }: { params: { id: st
         <Stat label="Budget"    value={`${totalBudget > 0 ? Math.round((totalUsed / totalBudget) * 100) : 0}%`} sub={formatCurrency(totalUsed) + " / " + formatCurrency(totalBudget)} />
       </div>
 
-      <h2 className="eyebrow mb-3">Projects in this portfolio</h2>
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="eyebrow">Projects in this portfolio</h2>
+        <Link
+          href={`/projects/new?portfolio=${portfolio.id}`}
+          className="btn-primary"
+        >
+          <Plus className="mr-1.5 h-4 w-4" /> Add project
+        </Link>
+      </div>
 
       {cards.length === 0 ? (
         <p className="text-sm text-fg3 py-6 text-center">

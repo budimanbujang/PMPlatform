@@ -94,6 +94,13 @@ export const portfolios = pgTable("portfolios", {
   name:           text("name").notNull(),
   description:    text("description"),
   sponsorId:      uuid("sponsor_id").references(() => profiles.id),
+  // Governance — division + department this portfolio reports under.
+  division:       text("division"),
+  department:     text("department"),
+  // RBAC: 'public' = visible to anyone in the org, 'restricted' = only
+  // members of `allowedEntraGroups` (Entra group object IDs) plus admins.
+  accessMode:         text("access_mode").notNull().default("public"),
+  allowedEntraGroups: text("allowed_entra_groups").array().notNull().default(sql`ARRAY[]::text[]`),
   createdAt, updatedAt,
 }, (t) => ({
   uniqOrgCode: unique().on(t.organisationId, t.code),
@@ -158,6 +165,10 @@ export const initiatives = pgTable("initiatives", {
   ioId:           uuid("io_id").references(() => profiles.id),
   rag:            projectRag("rag").notNull().default("grey"),
   sortOrder:      integer("sort_order").notNull().default(0),
+  // Dates drive the per-project Gantt chart. Default to parent project
+  // dates via the migration backfill so existing rows aren't blank.
+  startDate:      date("start_date"),
+  targetEndDate:  date("target_end_date"),
   createdAt, updatedAt,
 }, (t) => ({
   uniqProjectCode: unique().on(t.projectId, t.code),
