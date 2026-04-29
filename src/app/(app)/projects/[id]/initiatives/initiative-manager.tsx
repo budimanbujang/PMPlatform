@@ -176,8 +176,10 @@ function ListView({
 }
 
 // ───────────────────────────────────────────────────────────────────
-// KANBAN VIEW — 4 columns by RAG. Cards "move" between columns when
-// the user clicks the RAG selector on the card itself.
+// KANBAN VIEW — 4 columns by RAG. Cards can be moved by:
+//   1. Dragging the card with the mouse to another column, OR
+//   2. Clicking one of the four colour dots on the card.
+// Both paths call the same setInitiativeRag server action.
 // ───────────────────────────────────────────────────────────────────
 function KanbanView({
   initiatives, onSetRag, pending,
@@ -195,6 +197,29 @@ function KanbanView({
     byRag[i.rag].push(i);
   }
 
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+
+  function handleDragStart(e: React.DragEvent<HTMLDivElement>, id: string) {
+    e.dataTransfer.setData("text/plain", id);
+    e.dataTransfer.effectAllowed = "move";
+    setDraggingId(id);
+  }
+  function handleDragEnd() { setDraggingId(null); }
+  function handleDragOver(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  }
+  function handleDrop(e: React.DragEvent<HTMLDivElement>, rag: ProjectRag) {
+    e.preventDefault();
+    const id = e.dataTransfer.getData("text/plain");
+    setDraggingId(null);
+    if (!id) return;
+    // Skip the round-trip if the user dropped onto the column the card
+    // already lives in.
+    const current = initiatives.find((x) => x.id === id);
+    if (current && current.rag !== rag) onSetRag(id, rag);
+  }
+
   if (initiatives.length === 0) {
     return (
       <div className="rounded-md border border-border bg-bg-subtle py-10 text-center text-sm text-fg3">
@@ -207,8 +232,21 @@ function KanbanView({
     <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
       {RAG_COLUMNS.map(({ rag, title, subtitle, accent }) => {
         const items = byRag[rag] ?? [];
+        const isSourceColumn = !!draggingId && items.some((i) => i.id === draggingId);
+        const isPotentialTarget = !!draggingId && !isSourceColumn;
         return (
-          <div key={rag} className="rounded-md border border-border bg-bg-subtle">
+          <div
+            key={rag}
+            onDragOver={handleDragOver}
+            onDrop={(e) => handleDrop(e, rag)}
+            className={cn(
+              "rounded-md border bg-bg-subtle transition-colors",
+              isPotentialTarget
+                ? "border-brand-500 ring-2 ring-brand-500/30"
+                : "border-border",
+              isSourceColumn && "opacity-70",
+            )}
+          >
             <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5">
               <div className="flex items-center gap-2">
                 <span className={`h-2 w-2 rounded-full ${accent}`} aria-hidden />
@@ -228,11 +266,16 @@ function KanbanView({
                   initiative={i}
                   onSetRag={onSetRag}
                   pending={pending}
+                  isDragging={draggingId === i.id}
+                  onDragStart={(e) => handleDragStart(e, i.id)}
+                  onDragEnd={handleDragEnd}
                 />
               ))}
               {items.length === 0 && (
                 <div className="rounded-md border border-dashed border-border bg-surface/30 py-4 text-center text-[11px] text-fg4">
-                  Drop here by clicking RAG on a card.
+                  {isPotentialTarget
+                    ? "Drop here to move."
+                    : "Drag a card here, or click a colour dot."}
                 </div>
               )}
             </div>
@@ -244,14 +287,27 @@ function KanbanView({
 }
 
 function KanbanCard({
-  initiative, onSetRag, pending,
+  initiative, onSetRag, pending, isDragging, onDragStart, onDragEnd,
 }: {
   initiative: Initiative;
   onSetRag: (id: string, rag: ProjectRag) => void;
   pending: boolean;
+  isDragging: boolean;
+  onDragStart: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragEnd:   () => void;
 }) {
   return (
-    <div className="rounded-md border border-border bg-surface p-3 shadow-sm">
+    <div
+      draggable
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      className={cn(
+        "rounded-md border border-border bg-surface p-3 shadow-sm",
+        "cursor-grab active:cursor-grabbing select-none",
+        "transition-[opacity,box-shadow] duration-fast",
+        isDragging && "opacity-50 ring-2 ring-brand-500/40",
+      )}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="font-mono text-[10px] uppercase tracking-wider text-fg3">{initiative.code}</div>
@@ -266,6 +322,9 @@ function KanbanCard({
             type="button"
             disabled={pending || initiative.rag === r}
             onClick={() => onSetRag(initiative.id, r)}
+            // Stop drag from firing when the user just wants to click the dot.
+            onMouseDown={(e) => e.stopPropagation()}
+            draggable={false}
             title={`Move to ${r}`}
             className={cn(
               "flex h-5 w-5 items-center justify-center rounded-full border transition-all",

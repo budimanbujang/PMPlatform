@@ -235,6 +235,7 @@ a[class*="rounded-lg"][class*="border-border"][class*="bg-surface"]:hover,
 .stat:hover {
   box-shadow:
     0 0 0 2px rgba(217, 158, 11, 0.35),     /* brand-500 @ 35% — the hollow ring */
+    0 0 24px -4px rgba(217, 158, 11, 0.45), /* warm mustard glow */
     var(--shadow-md);
 }
 [data-theme="dark"] a.card:hover,
@@ -242,5 +243,6 @@ a[class*="rounded-lg"][class*="border-border"][class*="bg-surface"]:hover,
 [data-theme="dark"] .stat:hover {
   box-shadow:
     0 0 0 2px rgba(247, 208, 70, 0.45),     /* brand-300 @ 45% — brighter for dark */
+    0 0 32px -4px rgba(247, 208, 70, 0.55), /* larger, stronger glow on dark */
     var(--shadow-md);
 }
