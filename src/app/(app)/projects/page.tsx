@@ -23,6 +23,8 @@ type Row = {
   currency: string | null;
   tasks_total: string | null;
   tasks_completed: string | null;
+  portfolio_id: string | null;
+  portfolio_name: string | null;
 };
 
 export default async function ProjectsPage({
@@ -49,12 +51,15 @@ export default async function ProjectsPage({
       COALESCE(b.planned_total, 0) AS budget_total,
       (SELECT currency FROM budget_lines bl WHERE bl.project_id = p.id LIMIT 1) AS currency,
       (SELECT COUNT(*)::int FROM deliverables d WHERE d.project_id = p.id)                             AS tasks_total,
-      (SELECT COUNT(*)::int FROM deliverables d WHERE d.project_id = p.id AND d.status = 'complete')   AS tasks_completed
+      (SELECT COUNT(*)::int FROM deliverables d WHERE d.project_id = p.id AND d.status = 'complete')   AS tasks_completed,
+      pf.id   AS portfolio_id,
+      pf.name AS portfolio_name
     FROM projects p
     LEFT JOIN v_project_budget_summary b ON b.project_id = p.id
+    LEFT JOIN portfolios pf ON pf.id = p.portfolio_id
     WHERE p.organisation_id = ${orgId}
       AND (${filterStatus || null}::text IS NULL OR p.status::text = ${filterStatus || null})
-    ORDER BY p.updated_at DESC
+    ORDER BY pf.name NULLS LAST, p.updated_at DESC
   `) as unknown as Row[];
 
   // Counts per status for the filter chip labels
@@ -91,6 +96,8 @@ export default async function ProjectsPage({
       tasksTotal,
       startDate: r.start_date,
       endDate: r.target_end_date,
+      portfolioId: r.portfolio_id,
+      portfolioName: r.portfolio_name,
       canDelete: profile.is_platform_admin,
     };
   });

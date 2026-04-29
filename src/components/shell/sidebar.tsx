@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, FolderKanban, FileText, Upload, Target,
   AlertTriangle, Wallet, Sparkles, Settings, ListChecks, Users2,
-  ShieldCheck,
+  ShieldCheck, Layers,
   type LucideIcon,
 } from "lucide-react";
 import type { Profile } from "@/types/database";
@@ -15,6 +15,7 @@ type NavItem = { href: string; label: string; icon: LucideIcon };
 
 const workspace: NavItem[] = [
   { href: "/",            label: "Dashboard",        icon: LayoutDashboard },
+  { href: "/portfolios",  label: "Portfolios",       icon: Layers },
   { href: "/projects",    label: "Projects",         icon: FolderKanban },
   { href: "/submissions", label: "My submissions",   icon: FileText },
   { href: "/deliverables",label: "Deliverables",     icon: Target },

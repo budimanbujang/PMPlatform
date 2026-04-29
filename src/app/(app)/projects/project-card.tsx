@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Layers } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { BudgetBar } from "@/components/ui/budget-bar";
 import { ProjectDeleteButton } from "./delete-button";
@@ -18,6 +19,10 @@ export type ProjectCardProps = {
   tasksTotal: number;
   startDate: string | null;
   endDate: string | null;
+  // Optional portfolio chip — surfaces "Project IRIS" above the title
+  // when this project belongs to a portfolio. Hidden when null.
+  portfolioId?: string | null;
+  portfolioName?: string | null;
   // True when the current user can hard-delete this project.
   // Drives the trash icon overlay; otherwise it isn't rendered.
   canDelete?: boolean;
@@ -83,6 +88,14 @@ export function ProjectCard(p: ProjectCardProps) {
       href={`/projects/${p.id}`}
       className="flex flex-col rounded-lg border border-border bg-surface p-5 shadow-sm transition-shadow duration-normal ease-standard hover:shadow-md focus-visible:outline-none focus-visible:shadow-focus"
     >
+      {/* Optional portfolio breadcrumb */}
+      {p.portfolioName && (
+        <div className="mb-1.5 inline-flex items-center gap-1 text-[11px] uppercase tracking-wider text-fg3">
+          <Layers className="h-3 w-3" />
+          {p.portfolioName}
+        </div>
+      )}
+
       {/* Title row with status dot */}
       <div className="flex items-start gap-2">
         <span className={`mt-[7px] h-2 w-2 flex-none rounded-full ${status.dot}`} aria-hidden />
