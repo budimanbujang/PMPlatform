@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Toaster } from "sonner";
-import { displayFont, sansFont } from "@/lib/fonts";
+import { outfit } from "@/lib/fonts";
 import { ThemeInit } from "@/components/theme/theme-init";
 import { GooFilterDefs } from "@/components/ui/goo-filter";
 import "./globals.css";
@@ -18,7 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="en"
-      className={`h-full antialiased ${displayFont.variable} ${sansFont.variable}`}
+      className={`h-full antialiased ${outfit.variable}`}
       suppressHydrationWarning
     >
       <head>

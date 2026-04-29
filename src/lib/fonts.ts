@@ -1,31 +1,23 @@
-import localFont from "next/font/local";
+import { Outfit } from "next/font/google";
 
 /**
- * Fonts per the JCorp PMO design system:
- * - Gilroy (ExtraBold + Light) for display / brand headings
- * - Montserrat variable (roman + italic) for UI / body
+ * Single typeface for the entire platform: Outfit (variable, weights 100–900),
+ * served via next/font/google so the woff2 is self-hosted at build time and
+ * no runtime request to fonts.googleapis.com is needed.
  *
- * Exposed as CSS custom properties --font-display / --font-sans so every
- * token consumer (globals.css + Tailwind's `font-*` utilities) resolves to
- * the right face. Monospace is left to the system stack via tokens.css.
+ * The CSS custom property `--font-outfit` (set on <html> via the className
+ * attached in app/layout.tsx) is referenced from tokens.css under both
+ * --font-display and --font-sans, so any utility that resolves to either
+ * uses Outfit. Mono falls back to ui-monospace per tokens.css.
  */
-
-export const displayFont = localFont({
-  src: [
-    { path: "../../public/fonts/Gilroy-Light.ttf",     weight: "300", style: "normal" },
-    { path: "../../public/fonts/Gilroy-ExtraBold.ttf", weight: "800", style: "normal" },
-  ],
+export const outfit = Outfit({
+  subsets: ["latin"],
   display: "swap",
-  variable: "--font-display",
-  fallback: ["Montserrat", "system-ui", "sans-serif"],
-});
-
-export const sansFont = localFont({
-  src: [
-    { path: "../../public/fonts/Montserrat-Variable.ttf",        weight: "100 900", style: "normal" },
-    { path: "../../public/fonts/Montserrat-Italic-Variable.ttf", weight: "100 900", style: "italic" },
-  ],
-  display: "swap",
-  variable: "--font-sans",
+  variable: "--font-outfit",
   fallback: ["system-ui", "-apple-system", "Segoe UI", "sans-serif"],
 });
+
+// Back-compat exports — older imports referenced these names. Both now
+// resolve to the same Outfit font object so the woff2 is fetched once.
+export const displayFont = outfit;
+export const sansFont    = outfit;

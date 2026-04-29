@@ -92,6 +92,15 @@
   --dur-fast:   120ms;
   --dur-normal: 180ms;
   --dur-slow:   260ms;
+
+  /* --- Type families ---
+     Single typeface: Outfit (loaded by next/font/google in src/lib/fonts.ts
+     and exposed as --font-outfit on <html>). Both --font-display and
+     --font-sans alias it so headings + body share the same family at
+     different weights. Mono falls back to the system stack. */
+  --font-display: var(--font-outfit), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans:    var(--font-outfit), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono:    "JetBrains Mono", "SF Mono", ui-monospace, Menlo, monospace;
 }
 
 [data-theme="dark"] {
